@@ -115,8 +115,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "AlienTechnology",
-        "repo": "alienrepair",
+        "owner": "rolaxproblema12",
+        "repo": "AlienRepair",
         "releaseType": "release"
       }
     ],
