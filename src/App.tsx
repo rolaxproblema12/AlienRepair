@@ -84,7 +84,11 @@ export default function App() {
         maxAge: 24 * 60 * 60 * 1000,
         buster: packageJson.version,
         dehydrateOptions: {
-          shouldDehydrateQuery: (q) => shouldPersistQueryKey(q.queryKey),
+          // Excluir queries en vuelo: TanStack v5 deja una Promise en el
+          // state de queries pending y IndexedDB no puede structured-clone
+          // Promises, lo que tiraba DataCloneError en cada batch del cache.
+          shouldDehydrateQuery: (q) =>
+            q.state.status !== 'pending' && shouldPersistQueryKey(q.queryKey),
         },
       }}
     >

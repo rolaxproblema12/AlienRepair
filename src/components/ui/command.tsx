@@ -2,7 +2,12 @@ import * as React from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -26,6 +31,12 @@ interface CommandDialogProps extends React.ComponentProps<typeof Dialog> {
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => (
   <Dialog {...props}>
     <DialogContent className="overflow-hidden p-0 sm:max-w-xl">
+      {/* Visually-hidden title + description satisface a Radix sin
+          alterar el layout del command palette. */}
+      <DialogTitle className="sr-only">Buscador rápido</DialogTitle>
+      <DialogDescription className="sr-only">
+        Busca clientes, órdenes o navega por el sistema con el teclado.
+      </DialogDescription>
       <Command className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2">
         {children}
       </Command>

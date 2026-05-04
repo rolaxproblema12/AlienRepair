@@ -4,6 +4,7 @@ import type { UpdaterStatus } from '../../shared/updater-types';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -129,6 +130,7 @@ function ReleaseNotesDialog({ notes }: { notes: string }) {
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Notas de versión</DialogTitle>
+          <DialogDescription>Cambios incluidos en esta actualización.</DialogDescription>
         </DialogHeader>
         <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-secondary p-3 text-xs text-foreground">
           {notes}
