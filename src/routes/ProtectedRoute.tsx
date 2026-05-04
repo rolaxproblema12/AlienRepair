@@ -12,11 +12,7 @@ export default function ProtectedRoute() {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (!loading) {
-      setShowEscape(false);
-      setElapsed(0);
-      return;
-    }
+    if (!loading) return;
     const start = Date.now();
     const tick = setInterval(() => {
       setElapsed(Math.floor((Date.now() - start) / 1000));

@@ -11,10 +11,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [showEscape, setShowEscape] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      setShowEscape(false);
-      return;
-    }
+    if (!loading) return;
     const escape = setTimeout(() => setShowEscape(true), 6_000);
     return () => clearTimeout(escape);
   }, [loading]);
