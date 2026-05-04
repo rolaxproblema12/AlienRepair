@@ -16,18 +16,23 @@ Stack: Electron 33 + electron-vite + React 18 + TypeScript + Tailwind + shadcn/u
 |---|---|
 | `npm run dev` | Boots `electron-vite dev` — main, preload, and Vite renderer with HMR. DevTools open automatically (detached). |
 | `npm run build` | Builds all three targets into `dist-electron/main`, `dist-electron/preload`, `dist/`. |
-| `npm run typecheck` | `tsc --noEmit` — there is no test runner and no linter configured; this is the only static check. |
-| `npm run dist:win` | Builds + runs `electron-builder --win` → NSIS installer in `release/`. Registers `alienrepair://` protocol. |
+| `npm run typecheck` | `tsc --noEmit` across the project references (`tsconfig.web.json` + `tsconfig.node.json`). |
+| `npm run lint` | `eslint .` — config in `eslint.config.js`. CI gates on this. |
+| `npm test` / `npm run test:run` | Vitest (`happy-dom` env, setup in `src/test/setup.ts`). Tests live next to the code as `*.{test,spec}.{ts,tsx}`. |
+| `npm run test:e2e` | Playwright against the packaged Electron app. Needs `npm run build` first and a staging Supabase project (see `playwright.config.ts`). Specs in `e2e/`. |
+| `npm run db:migrate` / `npm run db:status` | Custom runner in `scripts/migrate.ts` — applies SQL files from `supabase/migrations/` against `SUPABASE_DB_URL`, hash-tracked in `app._migrations`. |
+| `npm run dist:win` | Builds + runs `electron-builder --win` → NSIS installer in `release/`. Registers `alienrepair://` protocol. Auto-update target: `rolaxproblema12/AlienRepair` (GitHub Releases). |
 
-There are no unit/integration tests. Verify changes by running `npm run dev` and exercising the affected flow.
+Vitest covers pure logic (lib helpers, schemas, hooks). For UI flows that aren't covered by Playwright, run `npm run dev` and exercise the path manually.
 
 ## Three-process layout (electron-vite)
 
 `electron.vite.config.ts` defines three independent builds; do not collapse them:
 
-- **main** (`electron/main.ts` → `dist-electron/main/index.js`, ESM): single `BrowserWindow`, registers `alienrepair://` protocol, owns single-instance lock, forwards OAuth deep-links to the renderer via `auth:deep-link` IPC, and exposes three `ipcMain.handle` channels: `app:open-external`, `app:open-whatsapp`, `print:document`.
+- **main** (`electron/main.ts` → `dist-electron/main/index.js`, ESM): single `BrowserWindow`, registers `alienrepair://` protocol, owns single-instance lock, forwards OAuth deep-links to the renderer via `auth:deep-link` IPC. `ipcMain.handle` channels: `app:open-external`, `app:open-whatsapp`, `print:document`, `catalog:read-userdata`, `catalog:refresh`, `updater:check`, `updater:quit-and-install`. Sentry is initialized via the side-effect import of `electron/sentry.ts`. Auto-updater (`electron/updater.ts`) is wired only when `app.isPackaged` is true.
 - **preload** (`electron/preload.ts` → `dist-electron/preload/index.cjs`, CJS, sandboxed): exposes `window.alien` via `contextBridge`. Type lives in `src/types/env.d.ts` — keep both files in sync when adding IPC.
 - **renderer** (`src/`, root is repo root, alias `@` → `src/`): React app, uses `HashRouter` (required because Electron loads via `file://` in production).
+- **shared** (`shared/`): types that cross the main/renderer boundary (e.g. `UpdaterStatus`). Imported by both `electron/` and `src/` because both `tsconfig.web.json` and `tsconfig.node.json` include `"shared"`. Don't put runtime code here — only types and pure constants.
 
 When adding IPC: declare the handler in `electron/main.ts`, expose it in `electron/preload.ts`, and extend the `AlienApi` interface in `src/types/env.d.ts`.
 
@@ -55,7 +60,7 @@ Admin-only routes additionally wrap in `AdminRoute` and rely on the `is_admin()`
 - **RLS**: every table is RLS-enabled. Patrón actual:
   - Tablas con sucursal_id usan `is_active_user_in_sucursal(sucursal_id)` (combinación de active + asignación o admin).
   - Tablas globales (profiles, access_codes, app_settings, sucursales, user_sucursales) siguen con sus policies específicas — `is_admin()` para escribir, lectura propia/admin.
-  Nuevas tablas/policies van en un archivo numerado bajo `supabase/migrations/`. Migraciones se aplican **manualmente** vía Supabase SQL editor — no hay migration runner. Latest migrations to apply on a fresh DB: `0021_inventory.sql`, `0022_sales.sql`, `0023_parts.sql`, **`0026_sucursales.sql`, `0027_sucursal_columns.sql`, `0028_folio_per_sucursal.sql`, `0029_sucursal_rls.sql`, `0030_sucursal_views_triggers.sql`** (las cinco de multi-sucursal aplicar en orden).
+  Nuevas tablas/policies van en un archivo numerado bajo `supabase/migrations/`. Migraciones se aplican con `npm run db:migrate` (necesita `SUPABASE_DB_URL` en `.env.local` — connection string Postgres directa, no anon key). El runner (`scripts/migrate.ts`) ejecuta cada archivo dentro de una transacción y registra `id + hash + applied_at` en `app._migrations`; reaplicar un archivo modificado tira con error de hash. `npm run db:status` lista pendientes vs aplicadas. Las cinco migraciones de multi-sucursal son `0026_sucursales.sql`, `0027_sucursal_columns.sql`, `0028_folio_per_sucursal.sql`, `0029_sucursal_rls.sql`, `0030_sucursal_views_triggers.sql` (aplicar en orden).
 
 ## Domain structure
 
