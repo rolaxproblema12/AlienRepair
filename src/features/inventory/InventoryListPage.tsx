@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -69,10 +69,6 @@ export default function InventoryListPage() {
     categoryId !== 'all' ||
     lowStock ||
     includeInactive;
-
-  useEffect(() => {
-    if (isFiltering && expanded) setExpanded(false);
-  }, [isFiltering, expanded]);
 
   const total = productsQ.data?.length ?? 0;
   const lowStockCount = useMemo(

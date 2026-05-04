@@ -6,7 +6,6 @@ import {
   Lock,
   Plus,
   Receipt,
-  Wallet,
 } from 'lucide-react';
 import { useCurrentSession, useDayBalance, useSales } from './hooks';
 import { PAYMENT_METHOD_ACCENT, PAYMENT_METHOD_LABELS } from './types';

@@ -41,7 +41,7 @@ export default function SignupWithCodePage() {
 
   useEffect(() => {
     refreshProfile();
-  }, []);
+  }, [refreshProfile]);
 
   useEffect(() => {
     if (profile?.active) navigate('/dashboard', { replace: true });

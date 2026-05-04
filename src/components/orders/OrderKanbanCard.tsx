@@ -1,3 +1,11 @@
+/* eslint-disable react-hooks/refs --
+ * dnd-kit's useDraggable() returns drag.setNodeRef, drag.listeners,
+ * drag.attributes y drag.isDragging — todos meant to be applied
+ * directamente al render. La regla `react-hooks/refs` los marca como
+ * "ref accessed during render" pero ese es exactamente el contrato del
+ * lib (sin esos accesos no funciona el drag visual). Disable a nivel
+ * de archivo evita 5 disable-line.
+ */
 import { Link } from 'react-router-dom';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';

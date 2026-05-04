@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChevronDown,
@@ -47,11 +47,6 @@ export default function CustomersPage() {
   const collapsed = !isSearching && !expanded && total > ROW_LIMIT;
   const visible = collapsed ? data!.slice(0, ROW_LIMIT) : data ?? [];
   const hidden = total - visible.length;
-
-  // Cuando empieza una búsqueda, no queremos arrastrar el "expanded" del modo lista.
-  useEffect(() => {
-    if (isSearching && expanded) setExpanded(false);
-  }, [isSearching, expanded]);
 
   function openCreate() {
     setEditing(null);

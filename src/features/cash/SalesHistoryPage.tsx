@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Receipt, Search } from 'lucide-react';
 import { useSales } from './hooks';
@@ -59,10 +59,6 @@ export default function SalesHistoryPage() {
     status !== 'all' ||
     !!debouncedFrom ||
     !!debouncedTo;
-
-  useEffect(() => {
-    if (isFiltering && expanded) setExpanded(false);
-  }, [isFiltering, expanded]);
 
   const total = data?.length ?? 0;
   const collapsed = !isFiltering && !expanded && total > ROW_LIMIT;

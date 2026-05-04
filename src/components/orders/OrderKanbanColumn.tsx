@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react';
+/* eslint-disable react-hooks/refs --
+ * dnd-kit's useDroppable() expone setNodeRef + isOver para aplicar
+ * directo en el render. Misma justificación que OrderKanbanCard.tsx.
+ */
+import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
@@ -29,11 +33,8 @@ export default function OrderKanbanColumn({
   const drop = useDroppable({ id: status });
   const [expanded, setExpanded] = useState(false);
 
-  // Si cambia el filtro/búsqueda y `limit` deja de aplicar, reseteamos.
-  useEffect(() => {
-    if (!limit) setExpanded(false);
-  }, [limit]);
-
+  // Cuando `limit` está ausente (sin filtro de paginación) ignoramos
+  // `expanded` — la lista entera se muestra, no hay que truncar.
   const collapsed = !!limit && !expanded && orders.length > limit;
   const visible = collapsed ? orders.slice(0, limit) : orders;
   const hidden = orders.length - visible.length;

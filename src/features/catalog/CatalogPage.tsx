@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Boxes, ChevronDown, ChevronUp, Eye, EyeOff, Search, Settings } from 'lucide-react';
 import { useDebouncedValue } from '@/lib/hooks';
@@ -53,7 +53,9 @@ export default function CatalogPage() {
   const multiplier = markupQ.data ?? DEFAULT_MARKUP_MULTIPLIER;
   const markupPct = multiplierToMarkupPct(multiplier);
 
-  const all = catalogQ.data ?? [];
+  // Estabilizar la referencia para que los useMemo de abajo no se invaliden
+  // en cada render por culpa del fallback `?? []` (que crea un array nuevo).
+  const all = useMemo(() => catalogQ.data ?? [], [catalogQ.data]);
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
@@ -81,12 +83,14 @@ export default function CatalogPage() {
   const isFiltering =
     debouncedSearch.trim().length > 0 || category !== 'all' || vendor !== 'all';
 
-  useEffect(() => {
-    if (isFiltering && expanded) setExpanded(false);
-  }, [isFiltering, expanded]);
+  // Cuando hay filtro activo, ignoramos `expanded` (mostramos siempre el
+  // resultado completo del filtro). Antes había un effect que reseteaba
+  // `expanded=false` al filtrar, pero eso es setState-in-effect; derivar
+  // el flag visible logra el mismo UX sin el ciclo extra.
+  const effectiveExpanded = expanded && !isFiltering;
 
   const total = filtered.length;
-  const collapsed = !isFiltering && !expanded && total > ROW_LIMIT;
+  const collapsed = !isFiltering && !effectiveExpanded && total > ROW_LIMIT;
   const visible = collapsed ? filtered.slice(0, ROW_LIMIT) : filtered;
   const hidden = total - visible.length;
 

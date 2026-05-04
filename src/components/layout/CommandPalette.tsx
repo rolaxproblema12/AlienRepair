@@ -55,7 +55,11 @@ function FullPalette({ open, onOpenChange }: Props) {
   const customers = useCustomers(debouncedQuery);
   const orders = useOrders({ search: debouncedQuery });
 
+  // Reset al cerrar para que la próxima Ctrl+K abra con el input limpio.
+  // setState-in-effect es intencional acá: el `open` lo controla el padre,
+  // así que no hay un único onOpenChange donde meter el reset.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open) setQuery('');
   }, [open]);
 

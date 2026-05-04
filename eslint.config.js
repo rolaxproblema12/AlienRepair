@@ -47,14 +47,26 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': [
+        'warn',
+        {
+          allowConstantExport: true,
+          // shadcn variants viven al lado de su componente; useAuth es el hook
+          // pareja de AuthProvider y partir el archivo no agrega valor.
+          allowExportNames: ['buttonVariants', 'badgeVariants', 'useAuth'],
+        },
+      ],
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/incompatible-library': 'warn',
+      // `incompatible-library` flagga useForm().watch() de react-hook-form
+      // ~11 veces — el linter lo marca porque React Compiler no lo puede
+      // memoizar, pero el lib está funcionando bien y no hay acción posible.
+      // Los dejamos como informativos pero sin generar ruido.
+      'react-hooks/incompatible-library': 'off',
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/refs': 'warn',
       'react-hooks/rules-of-hooks': 'warn',

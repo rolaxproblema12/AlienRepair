@@ -49,6 +49,7 @@ export default function AddPartToOrderDialog({ open, onOpenChange, orderId }: Pr
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPicked(null);
       setSearch('');
       reset({ quantity: 1, unit_sale_price: 0, notes: '' });

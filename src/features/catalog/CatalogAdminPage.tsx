@@ -30,8 +30,12 @@ export default function CatalogAdminPage() {
   const [markupInput, setMarkupInput] = useState<string>('');
   const [progress, setProgress] = useState<{ page: number; found: number } | null>(null);
 
+  // Inicializar el input con el valor del server una sola vez (cuando llega).
+  // Cualquier edit posterior del user lo deja > '', así que el guard previene
+  // sobreescribir lo tipeado.
   useEffect(() => {
     if (markupQ.data != null && markupInput === '') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMarkupInput(String(multiplierToMarkupPct(markupQ.data)));
     }
   }, [markupQ.data, markupInput]);

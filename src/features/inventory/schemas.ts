@@ -15,7 +15,7 @@ export const productSchema = z.object({
     .trim()
     .min(1, 'SKU requerido')
     .max(60)
-    .regex(/^[A-Za-z0-9._\-]+$/, 'Solo letras, números y . _ -'),
+    .regex(/^[A-Za-z0-9._-]+$/, 'Solo letras, números y . _ -'),
   barcode: z
     .string()
     .trim()
