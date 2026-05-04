@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Download, RefreshCw, X } from 'lucide-react';
-
-type Status =
-  | { kind: 'idle' }
-  | { kind: 'checking' }
-  | { kind: 'available'; version: string }
-  | { kind: 'not-available' }
-  | { kind: 'downloading'; percent: number }
-  | { kind: 'downloaded'; version: string }
-  | { kind: 'error'; message: string };
+import { AlertCircle, Download, FileText, RefreshCw, X } from 'lucide-react';
+import type { UpdaterStatus } from '../../shared/updater-types';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 export default function UpdateBanner() {
-  const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  const [status, setStatus] = useState<UpdaterStatus>({ kind: 'idle' });
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     const off = window.alien?.updater?.onStatus((s) => {
       setStatus(s);
-      if (s.kind === 'downloading' || s.kind === 'downloaded') setDismissed(false);
+      // Cualquier transición no-pasiva resetea dismiss para que el usuario
+      // vuelva a verla.
+      if (s.kind === 'downloading' || s.kind === 'downloaded' || s.kind === 'error') {
+        setDismissed(false);
+      }
     });
     return off;
   }, []);
@@ -27,9 +30,43 @@ export default function UpdateBanner() {
     return null;
   }
 
-  if (status.kind === 'error') return null;
+  if (status.kind === 'error') {
+    return (
+      <div className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive-foreground">
+        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+            <span>
+              No se pudo verificar actualizaciones: <strong>{status.message}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void window.alien.updater.checkNow()}
+              className="rounded-md bg-destructive px-3 py-1 text-xs font-medium text-destructive-foreground hover:opacity-90"
+            >
+              Reintentar
+            </button>
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              className="rounded-md p-1 text-destructive/80 hover:text-destructive"
+              aria-label="Cerrar aviso"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isDownloaded = status.kind === 'downloaded';
+  const releaseNotes =
+    status.kind === 'available' || status.kind === 'downloaded'
+      ? status.releaseNotes
+      : undefined;
 
   return (
     <div className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
@@ -53,6 +90,7 @@ export default function UpdateBanner() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {releaseNotes && <ReleaseNotesDialog notes={releaseNotes} />}
           {isDownloaded && (
             <button
               type="button"
@@ -73,5 +111,29 @@ export default function UpdateBanner() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ReleaseNotesDialog({ notes }: { notes: string }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 px-2 py-1 text-xs font-medium text-amber-100 hover:bg-amber-500/20"
+        >
+          <FileText className="h-3 w-3" />
+          Ver cambios
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Notas de versión</DialogTitle>
+        </DialogHeader>
+        <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-md bg-secondary p-3 text-xs text-foreground">
+          {notes}
+        </pre>
+      </DialogContent>
+    </Dialog>
   );
 }

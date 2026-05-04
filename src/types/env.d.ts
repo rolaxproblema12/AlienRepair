@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import type { UpdaterStatus } from '../../shared/updater-types';
+
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_ANON_KEY: string;
@@ -27,15 +29,6 @@ interface AlienCatalogApi {
   refresh: () => Promise<CatalogRefreshResult>;
   onRefreshProgress: (cb: (progress: CatalogRefreshProgress) => void) => () => void;
 }
-
-type UpdaterStatus =
-  | { kind: 'idle' }
-  | { kind: 'checking' }
-  | { kind: 'available'; version: string }
-  | { kind: 'not-available' }
-  | { kind: 'downloading'; percent: number }
-  | { kind: 'downloaded'; version: string }
-  | { kind: 'error'; message: string };
 
 interface AlienUpdaterApi {
   onStatus: (cb: (status: UpdaterStatus) => void) => () => void;

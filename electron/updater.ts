@@ -1,19 +1,26 @@
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import pkg from 'electron-updater';
+import * as Sentry from '@sentry/electron/main';
+import type { ReleaseNoteInfo } from 'builder-util-runtime';
+import type { UpdaterStatus } from '../shared/updater-types';
 
 const { autoUpdater } = pkg;
 
-export type UpdaterStatus =
-  | { kind: 'idle' }
-  | { kind: 'checking' }
-  | { kind: 'available'; version: string }
-  | { kind: 'not-available' }
-  | { kind: 'downloading'; percent: number }
-  | { kind: 'downloaded'; version: string }
-  | { kind: 'error'; message: string };
-
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
+function stringifyNotes(
+  n: string | Array<ReleaseNoteInfo> | null | undefined,
+): string | undefined {
+  if (!n) return undefined;
+  if (typeof n === 'string') return n.trim() || undefined;
+  return (
+    n
+      .map((entry) => `${entry.version ? `v${entry.version}\n` : ''}${entry.note ?? ''}`)
+      .join('\n\n')
+      .trim() || undefined
+  );
+}
 
 export function setupAutoUpdater(getWindow: () => BrowserWindow | null) {
   autoUpdater.autoDownload = true;
@@ -28,23 +35,33 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null) {
 
   autoUpdater.on('checking-for-update', () => send({ kind: 'checking' }));
   autoUpdater.on('update-available', (info) =>
-    send({ kind: 'available', version: info.version }),
+    send({
+      kind: 'available',
+      version: info.version,
+      releaseNotes: stringifyNotes(info.releaseNotes),
+    }),
   );
   autoUpdater.on('update-not-available', () => send({ kind: 'not-available' }));
   autoUpdater.on('download-progress', (p) =>
     send({ kind: 'downloading', percent: Math.floor(p.percent) }),
   );
   autoUpdater.on('update-downloaded', (info) =>
-    send({ kind: 'downloaded', version: info.version }),
+    send({
+      kind: 'downloaded',
+      version: info.version,
+      releaseNotes: stringifyNotes(info.releaseNotes),
+    }),
   );
-  autoUpdater.on('error', (err) =>
-    send({ kind: 'error', message: err?.message ?? 'Error de actualización' }),
-  );
+  autoUpdater.on('error', (err) => {
+    Sentry.captureException(err);
+    send({ kind: 'error', message: err?.message ?? 'Error de actualización' });
+  });
 
   ipcMain.handle('updater:check', async () => {
     try {
       await autoUpdater.checkForUpdates();
     } catch (err) {
+      Sentry.captureException(err);
       send({ kind: 'error', message: (err as Error).message });
     }
   });
@@ -54,12 +71,10 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null) {
   });
 
   setTimeout(() => {
-    autoUpdater.checkForUpdates().catch(() => {
-      // silenciar fallos de chequeo (sin internet, sin release publicado)
-    });
+    autoUpdater.checkForUpdates().catch((err) => Sentry.captureException(err));
   }, 5_000);
 
   setInterval(() => {
-    autoUpdater.checkForUpdates().catch(() => {});
+    autoUpdater.checkForUpdates().catch((err) => Sentry.captureException(err));
   }, SIX_HOURS_MS);
 }

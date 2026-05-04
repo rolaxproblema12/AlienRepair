@@ -11,5 +11,5 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["electron", "electron.vite.config.ts"]
+  "include": ["electron", "electron.vite.config.ts", "shared"]
 }

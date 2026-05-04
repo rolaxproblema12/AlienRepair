@@ -1,13 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-
-type UpdaterStatus =
-  | { kind: 'idle' }
-  | { kind: 'checking' }
-  | { kind: 'available'; version: string }
-  | { kind: 'not-available' }
-  | { kind: 'downloading'; percent: number }
-  | { kind: 'downloaded'; version: string }
-  | { kind: 'error'; message: string };
+import type { UpdaterStatus } from '../shared/updater-types';
 
 const api = {
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
