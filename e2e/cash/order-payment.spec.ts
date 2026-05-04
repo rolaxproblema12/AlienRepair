@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/electron';
 import { seedOrder } from '../fixtures/db';
 import { env } from '../fixtures/env';
+import { navigateHash } from '../fixtures/helpers';
 
 test.describe('Abono a orden de servicio', () => {
   test('registra pago, vincula con sesión abierta, balance decrece', async ({ window, db }) => {
@@ -10,13 +11,13 @@ test.describe('Abono a orden de servicio', () => {
     });
 
     // Abrir caja
-    await window.goto('http://localhost/#/caja').catch(() => {});
+    await navigateHash(window, '/caja');
     await window.getByRole('button', { name: /abrir caja/i }).click();
     await window.getByLabel(/monto inicial/i).fill('0');
     await window.getByRole('button', { name: /confirmar/i }).click();
 
     // Ir a la orden y abonar
-    await window.goto(`http://localhost/#/reparaciones/${order.id}`).catch(() => {});
+    await navigateHash(window, `/reparaciones/${order.id}`);
     await window.getByRole('button', { name: /registrar abono/i }).click();
     await window.getByLabel(/monto/i).fill('400');
     await window.getByRole('button', { name: /confirmar/i }).click();

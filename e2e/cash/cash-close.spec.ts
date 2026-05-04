@@ -1,13 +1,14 @@
 import { test, expect } from '../fixtures/electron';
 import { seedProduct } from '../fixtures/db';
 import { env } from '../fixtures/env';
+import { navigateHash } from '../fixtures/helpers';
 
 test.describe('Cierre de caja', () => {
   test('cierra con conteo, calcula diferencia, marca sesión closed', async ({ window, db }) => {
     await seedProduct(db.sql, env.sucursalId, { name: 'Mica', price: 100, stock: 10 });
 
     // Abrir caja con $200 inicial
-    await window.goto('http://localhost/#/caja').catch(() => {});
+    await navigateHash(window, '/caja');
     await window.getByRole('button', { name: /abrir caja/i }).click();
     await window.getByLabel(/monto inicial/i).fill('200');
     await window.getByRole('button', { name: /confirmar/i }).click();

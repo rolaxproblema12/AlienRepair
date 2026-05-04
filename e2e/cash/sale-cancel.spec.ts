@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/electron';
 import { seedProduct } from '../fixtures/db';
 import { env } from '../fixtures/env';
+import { navigateHash } from '../fixtures/helpers';
 
 test.describe('Cancelación de venta', () => {
   test('reverte stock vía trigger sales_cancel_reverse', async ({ window, db }) => {
@@ -10,7 +11,7 @@ test.describe('Cancelación de venta', () => {
       stock: 3,
     });
 
-    await window.goto('http://localhost/#/caja').catch(() => {});
+    await navigateHash(window, '/caja');
     await window.getByRole('button', { name: /abrir caja/i }).click();
     await window.getByLabel(/monto inicial/i).fill('0');
     await window.getByRole('button', { name: /confirmar/i }).click();
@@ -32,7 +33,7 @@ test.describe('Cancelación de venta', () => {
       select id from public.sales where sucursal_id = ${env.sucursalId}
       order by created_at desc limit 1
     `;
-    await window.goto(`http://localhost/#/caja/${sale.id}`).catch(() => {});
+    await navigateHash(window, `/caja/${sale.id}`);
     await window.getByRole('button', { name: /cancelar venta/i }).click();
     await window.getByLabel(/motivo/i).fill('cliente arrepentido');
     await window.getByRole('button', { name: /confirmar/i }).click();

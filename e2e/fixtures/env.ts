@@ -15,7 +15,6 @@ function required(name: string): string {
 export const env = {
   supabaseUrl: required('E2E_SUPABASE_URL'),
   supabaseAnonKey: required('E2E_SUPABASE_ANON_KEY'),
-  supabaseServiceRole: required('E2E_SUPABASE_SERVICE_ROLE_KEY'),
   supabaseDbUrl: required('E2E_SUPABASE_DB_URL'),
   userEmail: required('E2E_USER_EMAIL'),
   userPassword: required('E2E_USER_PASSWORD'),

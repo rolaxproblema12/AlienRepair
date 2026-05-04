@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/electron';
 import { seedProduct } from '../fixtures/db';
 import { env } from '../fixtures/env';
+import { navigateHash } from '../fixtures/helpers';
 
 test.describe('Venta de producto en POS', () => {
   test('crea venta, decreta stock vía trigger SQL, deja registro de movimiento', async ({
@@ -14,7 +15,7 @@ test.describe('Venta de producto en POS', () => {
     });
 
     // Abrir caja con $0
-    await window.goto('http://localhost/#/caja').catch(() => {});
+    await navigateHash(window, '/caja');
     await window.getByRole('button', { name: /abrir caja/i }).click();
     await window.getByLabel(/monto inicial/i).fill('0');
     await window.getByRole('button', { name: /confirmar/i }).click();
