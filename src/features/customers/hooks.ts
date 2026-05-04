@@ -1,0 +1,132 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { normalizePhone } from '@/lib/whatsapp';
+import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
+import type { Customer } from './types';
+import type { CustomerInput } from './schemas';
+
+const CUSTOMER_COLUMNS = 'id, name, phone, email, notes, created_by, created_at, updated_at';
+
+export function useCustomers(search = '') {
+  const sucursalId = useScopedSucursalId();
+  const trimmed = search.trim();
+  return useQuery({
+    queryKey: ['customers', sucursalId, trimmed],
+    queryFn: async () => {
+      let q = supabase
+        .from('customers')
+        .select(CUSTOMER_COLUMNS)
+        .eq('sucursal_id', sucursalId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (trimmed) {
+        const safe = trimmed.replace(/[,()]/g, ' ');
+        const term = `%${safe}%`;
+        q = q.or(`name.ilike.${term},phone.ilike.${term},email.ilike.${term}`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as Customer[];
+    },
+    staleTime: trimmed ? 30_000 : 2 * 60_000,
+  });
+}
+
+export function useCustomer(id: string | undefined) {
+  const sucursalId = useScopedSucursalId();
+  return useQuery({
+    queryKey: ['customer', sucursalId, id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customers')
+        .select(CUSTOMER_COLUMNS)
+        .eq('id', id!)
+        .single();
+      if (error) throw error;
+      return data as Customer;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCustomerActiveOrders(customerId: string | undefined) {
+  const sucursalId = useScopedSucursalId();
+  return useQuery({
+    queryKey: ['customer-active-orders', sucursalId, customerId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('sucursal_id', sucursalId)
+        .eq('customer_id', customerId!)
+        .neq('status', 'entregado');
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!customerId,
+  });
+}
+
+export function useSaveCustomer() {
+  const sucursalId = useScopedSucursalId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, values }: { id?: string; values: CustomerInput }) => {
+      const payload = {
+        name: values.name.trim(),
+        phone: normalizePhone(values.phone),
+        email: values.email ?? null,
+        notes: values.notes?.trim() || null,
+      };
+
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id ?? null;
+
+      if (id) {
+        const { data, error } = await supabase
+          .from('customers')
+          .update({ ...payload, updated_by: userId })
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data as Customer;
+      }
+
+      const { data, error } = await supabase
+        .from('customers')
+        .insert({
+          ...payload,
+          sucursal_id: sucursalId,
+          created_by: userId,
+          updated_by: userId,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Customer;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer'] });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer'] });
+      qc.invalidateQueries({ queryKey: ['customer-active-orders'] });
+    },
+  });
+}

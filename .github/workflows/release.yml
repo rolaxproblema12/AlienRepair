@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Build, sign, publish, upload sourcemaps
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test:run
+
+      - name: Build & publish to GitHub Releases
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: production
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_PROD }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_DSN_MAIN: ${{ secrets.SENTRY_DSN_MAIN }}
+          # Firma de código (descomentar cuando llegue el certificado).
+          # CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Upload sourcemaps to Sentry
+        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        with:
+          environment: production
+          version: alienrepair@${{ github.ref_name }}
+          sourcemaps: ./dist ./dist-electron

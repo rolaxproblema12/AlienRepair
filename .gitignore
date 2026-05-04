@@ -1,0 +1,20 @@
+node_modules
+dist
+dist-electron
+release
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode
+.idea
+playwright-report
+test-results
+coverage
+.eslintcache
+
+# Claude Code: local-only settings
+.claude/settings.local.json
+
+# Catálogo: páginas raw scrapeadas (intermedias, regenerables con build-catalog.mjs)
+data/scratch/fixoem_p*.json
