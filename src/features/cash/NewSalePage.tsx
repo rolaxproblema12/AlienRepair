@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -31,10 +31,13 @@ export default function NewSalePage() {
   const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>('efectivo');
   const [notes, setNotes] = useState('');
 
-  if (!sessionQ.isLoading && !sessionQ.data) {
-    navigate('/caja');
-    return null;
-  }
+  // Si la sesión de caja se cerró (otra PC vía realtime, o cambio de sucursal),
+  // redirige sin saltarse hooks. Antes el `if + return null` antes de useMemo
+  // hacía que React viera distinto número de hooks entre renders y crasheara.
+  const noSession = !sessionQ.isLoading && !sessionQ.data;
+  useEffect(() => {
+    if (noSession) navigate('/caja');
+  }, [noSession, navigate]);
 
   function addProduct(p: ProductWithCategory) {
     const existing = lines.find((l) => l.product_id === p.id);
@@ -139,6 +142,10 @@ export default function NewSalePage() {
       toast.error(getErrorMessage(err));
     }
   }
+
+  // Render-only short-circuit: ya pasamos por todos los hooks arriba, así
+  // que el orden es estable. El effect de arriba se encarga del redirect.
+  if (noSession) return null;
 
   return (
     <div className="flex h-full flex-col">
