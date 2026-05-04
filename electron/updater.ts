@@ -23,6 +23,13 @@ function stringifyNotes(
 }
 
 export function setupAutoUpdater(getWindow: () => BrowserWindow | null) {
+  // En dev (UPDATE_TEST_DEV=1) electron-updater por defecto se niega a
+  // chequear updates "porque la app no está empacada". forceDevUpdateConfig
+  // hace que respete dev-app-update.yml igual que en prod.
+  if (process.env.UPDATE_TEST_DEV === '1') {
+    autoUpdater.forceDevUpdateConfig = true;
+  }
+
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowDowngrade = false;

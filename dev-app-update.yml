@@ -1,0 +1,10 @@
+# electron-updater dev config. Solo se usa cuando arrancas con
+# UPDATE_TEST_DEV=1 (ver electron/updater.ts y electron/main.ts).
+#
+# Apunta al MISMO repo y provider que package.json#build.publish.
+# Permite probar el flujo completo (check → download → install) contra
+# un Release publicado real, sin necesidad de generar un instalador.
+provider: github
+owner: rolaxproblema12
+repo: AlienRepair
+releaseType: release

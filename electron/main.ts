@@ -106,8 +106,10 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Auto-update solo en producción empacada (no en dev).
-  if (app.isPackaged) {
+  // Auto-update solo en producción empacada. UPDATE_TEST_DEV=1 lo activa
+  // también en dev (lee dev-app-update.yml en raíz) para poder probar el
+  // flujo sin tener que empacar.
+  if (app.isPackaged || process.env.UPDATE_TEST_DEV === '1') {
     setupAutoUpdater(() => mainWindow);
   }
 

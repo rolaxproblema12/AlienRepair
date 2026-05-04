@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { queryClient } from '@/lib/queryClient';
 import { idbPersister, shouldPersistQueryKey } from '@/lib/queryPersister';
@@ -47,7 +48,34 @@ import ProtectedRoute from '@/routes/ProtectedRoute';
 import AdminRoute from '@/routes/AdminRoute';
 import AuthGate from '@/routes/AuthGate';
 
+// Detecta si la app levantó después de actualizarse comparando la versión
+// del bundle contra la última registrada en localStorage. Cubre tanto el
+// path manual ("Reiniciar y actualizar") como el silencioso de
+// autoInstallOnAppQuit, que de otro modo no daría feedback al usuario.
+function usePostUpdateToast() {
+  useEffect(() => {
+    const KEY = 'alien:last-version';
+    const current = packageJson.version;
+    let previous: string | null = null;
+    try {
+      previous = localStorage.getItem(KEY);
+    } catch {
+      /* localStorage no disponible — no hacemos nada */
+      return;
+    }
+    if (previous && previous !== current) {
+      toast.success(`Actualizado a v${current}`, { duration: 6_000 });
+    }
+    try {
+      localStorage.setItem(KEY, current);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+}
+
 export default function App() {
+  usePostUpdateToast();
   return (
     <PersistQueryClientProvider
       client={queryClient}
