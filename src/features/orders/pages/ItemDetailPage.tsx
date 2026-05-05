@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import DeleteButton from '@/components/common/DeleteButton';
 import { openWhatsApp, buildStatusMessage, formatPhoneDisplay } from '@/lib/whatsapp';
+import { useCurrentSucursal } from '@/features/sucursales/hooks';
+import { useSucursalSettingsMap } from '@/features/admin/sucursalConfig/hooks';
 import { formatDateTime, formatDate } from '@/lib/dates';
 import { currency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
@@ -29,6 +31,8 @@ export default function ItemDetailPage({ kind }: Props) {
   const order = useOrder(id);
   const del = useDeleteOrder();
   const copy = COPY[kind];
+  const { current: sucursal } = useCurrentSucursal();
+  const { map: settingsMap } = useSucursalSettingsMap(sucursal?.id);
 
   if (order.isLoading) {
     return (
@@ -69,7 +73,10 @@ export default function ItemDetailPage({ kind }: Props) {
               onClick={() =>
                 openWhatsApp(
                   o.customer!.phone,
-                  buildStatusMessage(o.customer!.name, o.folio, o.status)
+                  buildStatusMessage(o.customer!.name, o.folio, o.status, {
+                    shopName: sucursal?.name,
+                    template: settingsMap.get(`msg_status_${o.status}`),
+                  })
                 )
               }
             >

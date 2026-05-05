@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { openWhatsApp, buildStatusMessage } from '@/lib/whatsapp';
+import { useCurrentSucursal } from '@/features/sucursales/hooks';
+import { useSucursalSettingsMap } from '@/features/admin/sucursalConfig/hooks';
 import { formatShortDate, isOverdue } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +66,8 @@ function groupOrders(orders: OrderWithCustomer[]): Group[] {
 
 export default function AgendaPage() {
   const { data, isLoading } = useAgendaOrders();
+  const { current: sucursal } = useCurrentSucursal();
+  const { map: settingsMap } = useSucursalSettingsMap(sucursal?.id);
 
   const groups = data ? groupOrders(data) : [];
 
@@ -147,7 +151,10 @@ export default function AgendaPage() {
                         onClick={() =>
                           openWhatsApp(
                             o.customer!.phone,
-                            buildStatusMessage(o.customer!.name, o.folio, o.status)
+                            buildStatusMessage(o.customer!.name, o.folio, o.status, {
+                              shopName: sucursal?.name,
+                              template: settingsMap.get(`msg_status_${o.status}`),
+                            })
                           )
                         }
                       >

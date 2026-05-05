@@ -33,6 +33,7 @@ import {
   Tag,
   Upload,
   Building2,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -132,6 +133,7 @@ export default function AppShell() {
               <p className="mb-1 px-3 text-xs uppercase tracking-wide text-muted-foreground">
                 Admin
               </p>
+              <AdminLink to="/admin/configuracion" icon={Settings} label="Configuración" />
               <AdminLink to="/admin/sucursales" icon={Building2} label="Sucursales" />
               <AdminLink to="/admin/codes" icon={Shield} label="Códigos" />
               <AdminLink to="/admin/users" icon={Users} label="Usuarios" />

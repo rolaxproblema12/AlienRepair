@@ -87,6 +87,21 @@ export default function ReceiptTemplate({ order, variant, sucursal }: Props) {
 
       {compact && <hr className="print-hr" />}
 
+      {sucursal?.warranty_message && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            border: '1px dashed #999',
+            fontSize: compact ? '8pt' : '9.5pt',
+            color: '#444',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {sucursal.warranty_message}
+        </div>
+      )}
+
       <div className="print-footer">
         Gracias por su preferencia — {sucursal?.name ?? 'AlienTechnology'}
       </div>

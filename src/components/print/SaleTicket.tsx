@@ -78,6 +78,15 @@ export default function SaleTicket({ sale, sucursal }: Props) {
         </>
       )}
 
+      {sucursal?.warranty_message && (
+        <>
+          <hr className="print-hr" />
+          <p style={{ fontSize: 10, color: '#444', whiteSpace: 'pre-wrap' }}>
+            {sucursal.warranty_message}
+          </p>
+        </>
+      )}
+
       <hr className="print-hr" />
       <p style={{ textAlign: 'center', fontSize: 11, marginTop: 8 }}>
         ¡Gracias por su compra!

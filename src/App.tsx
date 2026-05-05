@@ -43,6 +43,7 @@ import PartDetailPage from '@/features/parts/PartDetailPage';
 import CatalogPage from '@/features/catalog/CatalogPage';
 import CatalogAdminPage from '@/features/catalog/CatalogAdminPage';
 import SucursalesAdminPage from '@/features/sucursales/SucursalesAdminPage';
+import ConfiguracionPage from '@/features/admin/ConfiguracionPage';
 import AppShell from '@/components/layout/AppShell';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import AdminRoute from '@/routes/AdminRoute';
@@ -148,6 +149,7 @@ export default function App() {
                   <Route path="/gastos" element={<ExpensesPage />} />
                   <Route path="/contabilidad" element={<AccountingPage />} />
 
+                  <Route path="/admin/configuracion" element={<ConfiguracionPage />} />
                   <Route path="/admin/sucursales" element={<SucursalesAdminPage />} />
                   <Route path="/admin/codes" element={<CodesPage />} />
                   <Route path="/admin/users" element={<UsersPage />} />

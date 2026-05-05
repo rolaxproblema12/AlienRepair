@@ -130,6 +130,22 @@ export default function ServiceOrderTemplate({ order, variant, sucursal }: Props
 
       {compact && <hr className="print-hr" />}
 
+      {sucursal?.warranty_message && (
+        <div
+          className="print-warranty"
+          style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            border: '1px dashed #999',
+            fontSize: compact ? '8pt' : '9.5pt',
+            color: '#444',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {sucursal.warranty_message}
+        </div>
+      )}
+
       <div className="print-footer">
         {sucursal?.name ?? 'AlienTechnology'} · Gracias por su preferencia
       </div>
