@@ -8,6 +8,7 @@ import type {
   OrderPayment,
   SaleDetail,
   SaleItem,
+  SalePayment,
   SalePaymentMethod,
   SaleReturn,
   SaleWithCustomer,
@@ -226,19 +227,30 @@ export function useSale(id: string | undefined) {
   return useQuery({
     queryKey: ['sale', sucursalId, id],
     queryFn: async () => {
-      const [{ data: sale, error: e1 }, { data: items, error: e2 }] = await Promise.all([
+      const [
+        { data: sale, error: e1 },
+        { data: items, error: e2 },
+        { data: payments, error: e3 },
+      ] = await Promise.all([
         supabase.from('sales').select(SALE_COLUMNS).eq('id', id!).single(),
         supabase
           .from('sale_items')
           .select('*')
           .eq('sale_id', id!)
           .order('id'),
+        supabase
+          .from('sale_payments')
+          .select('id, sale_id, sucursal_id, payment_method, amount, notes, created_at')
+          .eq('sale_id', id!)
+          .order('created_at', { ascending: true }),
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
+      if (e3) throw e3;
       return {
         ...(sale as unknown as SaleWithCustomer),
         items: (items ?? []) as SaleItem[],
+        payments: (payments ?? []) as import('./types').SalePayment[],
       } as SaleDetail;
     },
     enabled: !!id,
@@ -246,10 +258,17 @@ export function useSale(id: string | undefined) {
   });
 }
 
+export interface PaymentSplit {
+  payment_method: SalePaymentMethod;
+  amount: number;
+}
+
 interface CreateSaleInput {
   cashSessionId: string;
   customerId: string | null;
-  paymentMethod: SalePaymentMethod;
+  /** Lista de pagos. Si tiene 1 elemento es venta con un solo método;
+   *  con 2+ es split tender. La suma debe igualar el total de la venta. */
+  payments: PaymentSplit[];
   notes: string | null;
   lines: CartLine[];
 }
@@ -277,6 +296,22 @@ export function useCreateSale() {
         total += lineTotal;
       }
 
+      // Validar pagos: la suma debe coincidir con el total (tolerancia 1 cent).
+      const totalPaid = input.payments.reduce((s, p) => s + Number(p.amount), 0);
+      if (Math.abs(totalPaid - total) > 0.02) {
+        throw new Error(
+          `Suma de pagos (${totalPaid.toFixed(2)}) no coincide con total (${total.toFixed(2)})`,
+        );
+      }
+
+      // Método "principal" inicial = el de mayor monto. El trigger SQL
+      // sync_sale_primary_method lo recalcula al insertar sale_payments,
+      // pero lo seteamos acá también para no dejar la venta con valor
+      // arbitrario entre el insert y el trigger.
+      const primaryPayment = [...input.payments].sort(
+        (a, b) => b.amount - a.amount,
+      )[0];
+
       const { data: sale, error } = await supabase
         .from('sales')
         .insert({
@@ -287,7 +322,7 @@ export function useCreateSale() {
           iva_total: Number(iva_total.toFixed(2)),
           discount_total: Number(discount_total.toFixed(2)),
           total: Number(total.toFixed(2)),
-          payment_method: input.paymentMethod,
+          payment_method: primaryPayment.payment_method,
           notes: input.notes,
           created_by: userId,
         })
@@ -316,6 +351,22 @@ export function useCreateSale() {
         // rollback manual: borrar la venta huérfana (los triggers no se dispararon completamente)
         await supabase.from('sales').delete().eq('id', created.id);
         throw itemErr;
+      }
+
+      // insertar pagos (split tender). El trigger sync_sale_primary_method
+      // recalcula sales.payment_method si difiere del primary que ya pusimos.
+      const paymentRows = input.payments.map((p) => ({
+        sale_id: created.id,
+        sucursal_id: sucursalId,
+        payment_method: p.payment_method,
+        amount: Number(p.amount.toFixed(2)),
+      }));
+      const { error: payErr } = await supabase
+        .from('sale_payments')
+        .insert(paymentRows);
+      if (payErr) {
+        await supabase.from('sales').delete().eq('id', created.id);
+        throw payErr;
       }
 
       return created;
@@ -524,6 +575,29 @@ export function useOrdersWithBalance(search = '') {
         .filter((o) => o.balance > 0);
     },
     staleTime: 30_000,
+  });
+}
+
+// =====================================================
+// Pagos de venta (split tender via sale_payments)
+// =====================================================
+
+const SALE_PAYMENT_COLUMNS =
+  'id, sale_id, sucursal_id, payment_method, amount, notes, created_at';
+
+export function useSalePayments(saleId: string | undefined) {
+  return useQuery({
+    queryKey: ['sale-payments', saleId],
+    enabled: !!saleId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sale_payments')
+        .select(SALE_PAYMENT_COLUMNS)
+        .eq('sale_id', saleId!)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as SalePayment[];
+    },
   });
 }
 

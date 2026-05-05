@@ -27,8 +27,6 @@ export default function SaleTicket({ sale, sucursal }: Props) {
         <span>{formatDateTime(sale.created_at)}</span>
         <span>Cliente:</span>
         <span>{sale.customer?.name ?? 'Cliente general'}</span>
-        <span>Método:</span>
-        <span>{PAYMENT_METHOD_LABELS[sale.payment_method]}</span>
       </div>
 
       <hr className="print-hr" />
@@ -69,6 +67,27 @@ export default function SaleTicket({ sale, sucursal }: Props) {
         <span style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>
           {currency(sale.total)}
         </span>
+      </div>
+
+      <hr className="print-hr" />
+
+      {/* Pagos: lista todos los métodos. Si la venta es legacy
+          (pre-migración 0039) sin sale_payments, muestra el legacy
+          payment_method como única línea. */}
+      <div className="print-kv">
+        {sale.payments && sale.payments.length > 0 ? (
+          sale.payments.map((p) => (
+            <span key={p.id} style={{ display: 'contents' }}>
+              <span>{PAYMENT_METHOD_LABELS[p.payment_method]}:</span>
+              <span style={{ textAlign: 'right' }}>{currency(p.amount)}</span>
+            </span>
+          ))
+        ) : (
+          <>
+            <span>{PAYMENT_METHOD_LABELS[sale.payment_method]}:</span>
+            <span style={{ textAlign: 'right' }}>{currency(sale.total)}</span>
+          </>
+        )}
       </div>
 
       {sale.notes && (

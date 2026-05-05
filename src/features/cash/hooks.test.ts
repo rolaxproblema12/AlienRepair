@@ -169,20 +169,23 @@ describe('useDayBalance', () => {
 });
 
 describe('useCreateSale', () => {
-  it('computes totals and inserts sale + sale_items with sucursal_id', async () => {
+  it('computes totals and inserts sale + sale_items + sale_payments with sucursal_id', async () => {
     const { useCreateSale } = await import('./hooks');
     const created = { id: 'sale-1', folio: 'CM-0001' };
     supabaseChain.single.mockResolvedValueOnce({ data: created, error: null });
-    supabaseChain.insert.mockImplementationOnce(() => supabaseChain).mockResolvedValueOnce({
-      data: null,
-      error: null,
-    } as never);
+    // 1ª insert (sales) chainea select+single, 2ª (items) y 3ª (payments) son await directo.
+    supabaseChain.insert
+      .mockImplementationOnce(() => supabaseChain)
+      .mockResolvedValueOnce({ data: null, error: null } as never)
+      .mockResolvedValueOnce({ data: null, error: null } as never);
 
     const { result } = renderHookQ(() => useCreateSale());
     await result.current.mutateAsync({
       cashSessionId: 'sess-1',
       customerId: null,
-      paymentMethod: 'efectivo',
+      // 2 × $100 = $200 (iva incluido). useCreateSale valida que sum(payments)
+      // = total (con tolerancia de 1 cent), así que el monto debe coincidir.
+      payments: [{ payment_method: 'efectivo', amount: 200 }],
       notes: null,
       lines: [
         {
@@ -203,6 +206,7 @@ describe('useCreateSale', () => {
 
     expect(supabaseChain.from).toHaveBeenCalledWith('sales');
     expect(supabaseChain.from).toHaveBeenCalledWith('sale_items');
+    expect(supabaseChain.from).toHaveBeenCalledWith('sale_payments');
   });
 
   // El test de rollback (sale_items insert falla → delete de sale huérfana)

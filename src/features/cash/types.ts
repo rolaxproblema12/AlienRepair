@@ -57,6 +57,18 @@ export interface SaleItem {
 
 export interface SaleDetail extends SaleWithCustomer {
   items: SaleItem[];
+  /** Pagos asociados (split tender). Vacío para ventas legacy pre-0039. */
+  payments: SalePayment[];
+}
+
+export interface SalePayment {
+  id: string;
+  sale_id: string;
+  sucursal_id: string;
+  payment_method: SalePaymentMethod;
+  amount: number;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface SaleReturn {

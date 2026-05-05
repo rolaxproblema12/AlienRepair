@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Ban, Printer, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCancelSale, useSale, useSaleReturns } from './hooks';
+import { useCancelSale, useSale, useSalePayments, useSaleReturns } from './hooks';
 import { PAYMENT_METHOD_ACCENT, PAYMENT_METHOD_LABELS } from './types';
 import type { SaleItem } from './types';
 import ReturnItemDialog from './ReturnItemDialog';
@@ -38,6 +38,7 @@ export default function SaleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const saleQ = useSale(id);
   const returnsQ = useSaleReturns(id);
+  const paymentsQ = useSalePayments(id);
   const cancel = useCancelSale();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -249,8 +250,46 @@ export default function SaleDetailPage() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Pagos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {paymentsQ.isLoading ? (
+              <p className="text-xs text-muted-foreground">Cargando…</p>
+            ) : paymentsQ.data && paymentsQ.data.length > 0 ? (
+              paymentsQ.data.map((p) => (
+                <div key={p.id} className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      'inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                      PAYMENT_METHOD_ACCENT[p.payment_method],
+                    )}
+                  >
+                    {PAYMENT_METHOD_LABELS[p.payment_method]}
+                  </span>
+                  <span className="font-mono text-sm">{currency(p.amount)}</span>
+                </div>
+              ))
+            ) : (
+              // Fallback para ventas viejas sin sale_payments (pre-migración 0039).
+              <div className="flex items-center justify-between">
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                    PAYMENT_METHOD_ACCENT[s.payment_method],
+                  )}
+                >
+                  {PAYMENT_METHOD_LABELS[s.payment_method]}
+                </span>
+                <span className="font-mono text-sm">{currency(s.total)}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {s.notes && (
-          <Card>
+          <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Notas</CardTitle>
             </CardHeader>

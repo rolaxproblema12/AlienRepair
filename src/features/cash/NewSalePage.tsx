@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreateSale, useCurrentSession } from './hooks';
 import { calcLineTotal, type CartLine, type SalePaymentMethod } from './types';
@@ -20,6 +20,14 @@ import { getErrorMessage } from '@/lib/errors';
 
 type Tab = 'producto' | 'reparacion';
 
+// Una línea editable de pago en el panel "Pagos". Mantenemos `amount`
+// como string para que el input no force conversión hasta el submit.
+interface PaymentSplitRow {
+  key: string;
+  method: SalePaymentMethod;
+  amount: string;
+}
+
 export default function NewSalePage() {
   const navigate = useNavigate();
   const sessionQ = useCurrentSession();
@@ -28,7 +36,9 @@ export default function NewSalePage() {
   const [tab, setTab] = useState<Tab>('producto');
   const [lines, setLines] = useState<CartLine[]>([]);
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>('efectivo');
+  const [splits, setSplits] = useState<PaymentSplitRow[]>([
+    { key: crypto.randomUUID(), method: 'efectivo', amount: '' },
+  ]);
   const [notes, setNotes] = useState('');
 
   // Si la sesión de caja se cerró (otra PC vía realtime, o cambio de sucursal),
@@ -128,11 +138,26 @@ export default function NewSalePage() {
         return;
       }
     }
+    // Validar pagos: convertir strings a números, dropear vacíos, validar sum.
+    const payments = splits
+      .map((s) => ({ payment_method: s.method, amount: Number(s.amount) }))
+      .filter((p) => Number.isFinite(p.amount) && p.amount > 0);
+    if (!payments.length) {
+      toast.error('Captura al menos un método de pago con monto.');
+      return;
+    }
+    const sumPaid = payments.reduce((s, p) => s + p.amount, 0);
+    if (Math.abs(sumPaid - totals.total) > 0.02) {
+      toast.error(
+        `Pagos suman ${sumPaid.toFixed(2)} pero el total es ${totals.total.toFixed(2)}.`,
+      );
+      return;
+    }
     try {
       const sale = await create.mutateAsync({
         cashSessionId: sessionQ.data.id,
         customerId,
-        paymentMethod,
+        payments,
         notes: notes.trim() || null,
         lines,
       });
@@ -142,6 +167,26 @@ export default function NewSalePage() {
       toast.error(getErrorMessage(err));
     }
   }
+
+  // Helpers para gestionar splits.
+  function addSplit() {
+    setSplits((prev) => [
+      ...prev,
+      { key: crypto.randomUUID(), method: 'efectivo', amount: '' },
+    ]);
+  }
+  function removeSplit(key: string) {
+    setSplits((prev) => (prev.length > 1 ? prev.filter((s) => s.key !== key) : prev));
+  }
+  function updateSplit(key: string, patch: Partial<PaymentSplitRow>) {
+    setSplits((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  }
+  // Suma actual de splits (para mostrar "restante").
+  const splitsSum = splits.reduce(
+    (s, x) => s + (Number.isFinite(Number(x.amount)) ? Number(x.amount) : 0),
+    0,
+  );
+  const remaining = totals.total - splitsSum;
 
   // Render-only short-circuit: ya pasamos por todos los hooks arriba, así
   // que el orden es estable. El effect de arriba se encarga del redirect.
@@ -304,25 +349,83 @@ export default function NewSalePage() {
                 <CustomerCombobox value={customerId} onChange={setCustomerId} />
               </div>
 
-              <div className="space-y-1">
-                <Label>Método de pago</Label>
-                <div className="inline-flex w-full rounded-md border border-border bg-card p-0.5">
-                  {(['efectivo', 'tarjeta', 'transferencia'] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setPaymentMethod(m)}
-                      className={cn(
-                        'flex-1 rounded-sm px-3 py-1.5 text-xs font-medium transition',
-                        paymentMethod === m
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {PAYMENT_METHOD_LABELS[m]}
-                    </button>
-                  ))}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Pagos</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={addSplit}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Otro método
+                  </Button>
                 </div>
+                {splits.map((s) => (
+                  <div key={s.key} className="flex items-center gap-2">
+                    <div className="inline-flex flex-1 rounded-md border border-border bg-card p-0.5">
+                      {(['efectivo', 'tarjeta', 'transferencia'] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => updateSplit(s.key, { method: m })}
+                          className={cn(
+                            'flex-1 rounded-sm px-2 py-1 text-[11px] font-medium transition',
+                            s.method === m
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {PAYMENT_METHOD_LABELS[m]}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      placeholder="0.00"
+                      className="w-28 text-right"
+                      value={s.amount}
+                      onChange={(e) => updateSplit(s.key, { amount: e.target.value })}
+                    />
+                    {splits.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSplit(s.key)}
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        aria-label="Quitar pago"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {Math.abs(remaining) > 0.005 && (
+                  <p
+                    className={cn(
+                      'text-xs',
+                      remaining > 0 ? 'text-amber-400' : 'text-destructive',
+                    )}
+                  >
+                    {remaining > 0
+                      ? `Restante: ${currency(remaining)}`
+                      : `Excedido por ${currency(-remaining)}`}
+                    {remaining > 0 && splits.length === 1 && (
+                      <button
+                        type="button"
+                        className="ml-2 underline hover:text-foreground"
+                        onClick={() =>
+                          updateSplit(splits[0].key, { amount: totals.total.toFixed(2) })
+                        }
+                      >
+                        Cubrir total
+                      </button>
+                    )}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
