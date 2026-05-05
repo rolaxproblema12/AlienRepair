@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Toaster, toast } from 'sonner';
 import { AuthProvider } from '@/features/auth/AuthProvider';
+import { useTheme } from '@/lib/theme';
 import { queryClient } from '@/lib/queryClient';
 import { idbPersister, shouldPersistQueryKey } from '@/lib/queryPersister';
 import packageJson from '../package.json';
@@ -79,6 +80,7 @@ function usePostUpdateToast() {
 
 export default function App() {
   usePostUpdateToast();
+  const { theme } = useTheme();
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -171,7 +173,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </HashRouter>
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster theme={theme} position="top-right" richColors />
       </AuthProvider>
     </PersistQueryClientProvider>
   );

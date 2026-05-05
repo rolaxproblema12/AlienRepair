@@ -3,7 +3,32 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme — default si no hay clase .dark */
   :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 173 80% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 173 80% 36%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 173 80% 36%;
+    --radius: 0.5rem;
+  }
+
+  /* Dark theme — se activa con <html class="dark"> */
+  .dark {
     --background: 0 0% 4%;
     --foreground: 0 0% 90%;
     --card: 0 0% 7%;
@@ -23,7 +48,6 @@
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 173 80% 40%;
-    --radius: 0.5rem;
   }
 
   * {

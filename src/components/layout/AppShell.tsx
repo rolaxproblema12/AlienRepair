@@ -11,6 +11,7 @@ import CommandPalette from './CommandPalette';
 import SucursalSelector from './SucursalSelector';
 import UpdateBanner from '@/components/UpdateBanner';
 import UpdateCheckButton from '@/components/UpdateCheckButton';
+import ThemeToggle from '@/components/ThemeToggle';
 import {
   LayoutDashboard,
   Wrench,
@@ -162,6 +163,7 @@ export default function AppShell() {
         <UpdateBanner />
         <div className="flex h-12 shrink-0 items-center justify-end gap-2 border-b border-border px-4">
           <SucursalSelector />
+          <ThemeToggle />
           <UpdateCheckButton />
           <button
             type="button"
