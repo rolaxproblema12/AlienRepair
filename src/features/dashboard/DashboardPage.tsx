@@ -138,6 +138,8 @@ function RevenueCard({
   const total = data.reduce((sum, p) => sum + p.ingresos_total, 0);
   const today = data[data.length - 1]?.ingresos_total ?? 0;
 
+  // React Compiler memoiza este map automáticamente — manual useMemo
+  // dispara react-hooks/preserve-manual-memoization.
   const rows = data.map((p) => ({
     label: format(parseISO(p.dia), 'EEE', { locale: es }),
     fullLabel: format(parseISO(p.dia), "d 'de' MMMM", { locale: es }),

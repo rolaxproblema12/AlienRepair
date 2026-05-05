@@ -148,15 +148,17 @@ export default function AgendaPage() {
                         variant="ghost"
                         size="icon"
                         title="WhatsApp"
-                        onClick={() =>
+                        onClick={() => {
+                          const c = o.customer;
+                          if (!c) return;
                           openWhatsApp(
-                            o.customer!.phone,
-                            buildStatusMessage(o.customer!.name, o.folio, o.status, {
+                            c.phone,
+                            buildStatusMessage(c.name, o.folio, o.status, {
                               shopName: sucursal?.name,
                               template: settingsMap.get(`msg_status_${o.status}`),
-                            })
-                          )
-                        }
+                            }),
+                          );
+                        }}
                       >
                         <MessageCircle className="h-4 w-4" />
                       </Button>

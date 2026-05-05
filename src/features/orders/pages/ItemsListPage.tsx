@@ -271,12 +271,14 @@ function RowMenu({ order: o, item, route }: RowMenuProps) {
         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
           {o.customer && (
             <DropdownMenuItem
-              onSelect={() =>
+              onSelect={() => {
+                const c = o.customer;
+                if (!c) return;
                 openWhatsApp(
-                  o.customer!.phone,
-                  buildStatusMessage(o.customer!.name, o.folio, o.status),
-                )
-              }
+                  c.phone,
+                  buildStatusMessage(c.name, o.folio, o.status),
+                );
+              }}
             >
               <MessageCircle className="mr-2 h-4 w-4" />
               WhatsApp

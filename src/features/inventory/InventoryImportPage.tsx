@@ -130,6 +130,11 @@ export default function InventoryImportPage() {
       setHeaderErrors(result.headerErrors);
       setParsed(result.rows);
     };
+    reader.onerror = () => {
+      console.error('[InventoryImportPage] FileReader error:', reader.error);
+      toast.error('No se pudo leer el archivo. ¿Está corrupto?');
+      setFileName(null);
+    };
     reader.readAsText(file, 'UTF-8');
   }
 

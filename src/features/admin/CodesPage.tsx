@@ -64,6 +64,7 @@ export default function CodesPage() {
       await copy(created.code);
       toast.success(`Código ${created.code} generado`);
     } catch (err) {
+      console.error('[CodesPage] generate error:', err);
       toast.error(getErrorMessage(err));
     }
   }
@@ -74,6 +75,7 @@ export default function CodesPage() {
       await del.mutateAsync(code);
       toast.success('Código eliminado');
     } catch (err) {
+      console.error('[CodesPage] delete error:', err);
       toast.error(getErrorMessage(err));
     }
   }

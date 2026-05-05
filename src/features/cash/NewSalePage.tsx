@@ -164,7 +164,18 @@ export default function NewSalePage() {
       toast.success(`VTA-${sale.folio} registrada`);
       navigate(`/caja/${sale.id}`);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      console.error('[NewSalePage] checkout error:', err);
+      const msg = getErrorMessage(err);
+      // Detectamos el rejection del trigger prevent_negative_stock — la
+      // validación client-side puede pasar y la DB rechazar si entre
+      // medio se vendió el mismo producto desde otra sucursal.
+      if (/stock/i.test(msg)) {
+        toast.error(
+          'Stock insuficiente al registrar. Es posible que otra venta consumió el producto. Recarga el inventario.',
+        );
+      } else {
+        toast.error(msg);
+      }
     }
   }
 

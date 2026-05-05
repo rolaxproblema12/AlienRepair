@@ -93,6 +93,7 @@ export default function ExpenseFormDialog({
       toast.success(expense ? 'Gasto actualizado' : 'Gasto registrado');
       onOpenChange(false);
     } catch (err) {
+      console.error('[ExpenseFormDialog] save error:', err);
       toast.error(getErrorMessage(err));
     }
   });
