@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,19 @@ export default function UsersPage() {
     }
   }
 
+  async function saveCommissionRate(id: string, pct: number) {
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      toast.error('Comisión inválida (0-100%)');
+      return;
+    }
+    try {
+      await update.mutateAsync({ id, commission_rate: pct / 100 });
+      toast.success(`Comisión actualizada: ${pct}%`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
   return (
     <div className="space-y-6 p-8">
       <div>
@@ -96,6 +110,7 @@ export default function UsersPage() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>Activo</TableHead>
+                  <TableHead>Comisión %</TableHead>
                   <TableHead>Sucursales</TableHead>
                   <TableHead>Registrado</TableHead>
                 </TableRow>
@@ -135,6 +150,13 @@ export default function UsersPage() {
                       />
                     </TableCell>
                     <TableCell>
+                      <CommissionInput
+                        userId={u.id}
+                        initialPct={Number(u.commission_rate ?? 0) * 100}
+                        onSave={saveCommissionRate}
+                      />
+                    </TableCell>
+                    <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
@@ -164,6 +186,36 @@ export default function UsersPage() {
         />
       )}
     </div>
+  );
+}
+
+// Input controlado que persiste con onBlur (no en cada keystroke).
+function CommissionInput({
+  userId,
+  initialPct,
+  onSave,
+}: {
+  userId: string;
+  initialPct: number;
+  onSave: (id: string, pct: number) => Promise<void>;
+}) {
+  const [val, setVal] = useState(String(initialPct));
+  return (
+    <Input
+      type="number"
+      min={0}
+      max={100}
+      step={0.5}
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => {
+        const pct = Number(val);
+        if (Math.abs(pct - initialPct) > 0.001) {
+          onSave(userId, pct);
+        }
+      }}
+      className="h-8 w-20 text-xs"
+    />
   );
 }
 

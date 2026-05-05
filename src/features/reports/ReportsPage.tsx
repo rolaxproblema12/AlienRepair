@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { BarChart3, TrendingUp, Layers, FileText } from 'lucide-react';
+import { BarChart3, TrendingUp, Layers, FileText, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import SalesReportPanel from './panels/SalesReportPanel';
 import TopProductsPanel from './panels/TopProductsPanel';
 import OrderStatusPanel from './panels/OrderStatusPanel';
 import MonthlyAccountingPanel from './panels/MonthlyAccountingPanel';
+import EmployeeSalesPanel from './panels/EmployeeSalesPanel';
 
-type Tab = 'sales' | 'products' | 'orders' | 'accounting';
+type Tab = 'sales' | 'products' | 'orders' | 'accounting' | 'employees';
 
 const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
   { key: 'sales', label: 'Ventas por período', icon: BarChart3 },
   { key: 'products', label: 'Top productos', icon: TrendingUp },
+  { key: 'employees', label: 'Empleados', icon: UserCheck },
   { key: 'orders', label: 'OS por estado', icon: Layers },
   { key: 'accounting', label: 'Mensual contable', icon: FileText },
 ];
@@ -53,6 +55,7 @@ export default function ReportsPage() {
 
       {tab === 'sales' && <SalesReportPanel />}
       {tab === 'products' && <TopProductsPanel />}
+      {tab === 'employees' && <EmployeeSalesPanel />}
       {tab === 'orders' && <OrderStatusPanel />}
       {tab === 'accounting' && <MonthlyAccountingPanel />}
     </div>

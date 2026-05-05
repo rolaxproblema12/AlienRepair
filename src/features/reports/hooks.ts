@@ -139,6 +139,44 @@ interface MonthlyFilter {
   yearMonth: string;
 }
 
+// =====================================================
+// 5. Empleados con ventas + comisión por mes
+// =====================================================
+export interface EmployeeSalesRow {
+  employee_id: string;
+  employee_name: string | null;
+  employee_email: string | null;
+  sucursal_id: string;
+  period_month: string; // YYYY-MM
+  commission_rate: number;
+  ventas_count: number;
+  ingresos_total: number;
+  commission_amount: number;
+}
+
+interface EmployeeSalesFilter {
+  /** YYYY-MM, ej '2026-05' */
+  yearMonth: string;
+}
+
+export function useEmployeeSalesReport(filter: EmployeeSalesFilter) {
+  const sucursalId = useScopedSucursalId();
+  return useQuery({
+    queryKey: ['report-employee-sales', sucursalId, filter.yearMonth],
+    staleTime: REPORT_STALE_TIME,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('v_employee_sales_monthly')
+        .select('*')
+        .eq('sucursal_id', sucursalId)
+        .eq('period_month', filter.yearMonth)
+        .order('ingresos_total', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as EmployeeSalesRow[];
+    },
+  });
+}
+
 export function useMonthlyAccounting(filter: MonthlyFilter) {
   const sucursalId = useScopedSucursalId();
   return useQuery({

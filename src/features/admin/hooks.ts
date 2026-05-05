@@ -20,6 +20,7 @@ export interface AdminProfile {
   role: UserRole;
   active: boolean;
   created_at: string;
+  commission_rate: number;
 }
 
 export interface StatusAuditRow {
@@ -36,7 +37,8 @@ export interface StatusAuditRow {
 const ACCESS_CODE_COLUMNS =
   'code, role_to_grant, created_by, used_by, used_at, expires_at, created_at';
 
-const PROFILE_COLUMNS = 'id, email, full_name, role, active, created_at';
+const PROFILE_COLUMNS =
+  'id, email, full_name, role, active, created_at, commission_rate';
 
 function randomCode(length = 8): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -119,10 +121,18 @@ export function useAdminProfiles() {
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; active?: boolean; role?: UserRole }) => {
+    mutationFn: async (input: {
+      id: string;
+      active?: boolean;
+      role?: UserRole;
+      commission_rate?: number;
+    }) => {
       const payload: Record<string, unknown> = {};
       if (input.active !== undefined) payload.active = input.active;
       if (input.role) payload.role = input.role;
+      if (input.commission_rate !== undefined) {
+        payload.commission_rate = input.commission_rate;
+      }
       const { data, error } = await supabase
         .from('profiles')
         .update(payload)
