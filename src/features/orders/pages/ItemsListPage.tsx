@@ -110,12 +110,13 @@ export default function ItemsListPage({ kind }: Props) {
   const byStatus = useMemo(() => {
     const grouped: Record<OrderStatus, OrderWithCustomer[]> = {
       pendiente: [],
+      diagnostico: [],
       en_espera: [],
       reparando: [],
       listo: [],
       entregado: [],
     };
-    for (const o of filtered) grouped[o.status].push(o);
+    for (const o of filtered) grouped[o.status]?.push(o);
     return grouped;
   }, [filtered]);
 

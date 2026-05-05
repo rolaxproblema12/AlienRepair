@@ -39,11 +39,15 @@ export interface BuildStatusMessageOpts {
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
   pendiente: 'Recibimos tu equipo y pronto iniciaremos el diagnóstico.',
+  diagnostico: 'Ya hicimos el diagnóstico de tu equipo. Te lo compartimos por aparte.',
   en_espera: 'Tu equipo está en espera (pendiente de refacción o confirmación).',
   reparando: 'Ya comenzamos la reparación de tu equipo.',
   listo: '¡Tu equipo ya está listo para recoger! 🎉',
   entregado: 'Gracias por tu confianza. Cualquier duda avísanos.',
 };
+
+const DEFAULT_DIAGNOSIS_TEMPLATE =
+  'Hola {customer}, te compartimos el diagnóstico de tu equipo (OS #{folio}):\n\n{diagnosis}\n\nQuedamos atentos a tu autorización para continuar con la reparación.';
 
 function applyVars(template: string, customer: string, folio: string): string {
   return template.replaceAll('{customer}', customer).replaceAll('{folio}', folio);
@@ -75,4 +79,23 @@ export function buildStatusMessage(
   }
 
   return opts.extra ? `${text}\n\n${opts.extra}` : text;
+}
+
+export interface BuildDiagnosisMessageOpts {
+  shopName?: string | null;
+  /** Plantilla custom configurada por sucursal en `sucursal_settings.msg_diagnosis`. Soporta `{customer}`, `{folio}`, `{diagnosis}`. */
+  template?: string | null;
+}
+
+export function buildDiagnosisMessage(
+  customerName: string,
+  folio: string,
+  diagnosis: string,
+  opts?: BuildDiagnosisMessageOpts,
+): string {
+  const tpl = opts?.template?.trim() || DEFAULT_DIAGNOSIS_TEMPLATE;
+  return tpl
+    .replaceAll('{customer}', customerName)
+    .replaceAll('{folio}', folio)
+    .replaceAll('{diagnosis}', diagnosis);
 }

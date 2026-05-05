@@ -343,6 +343,7 @@ function WhatsappTemplatesTab({ sucursalId }: { sucursalId: string }) {
     if (!settingsQ.isLoading) {
       reset({
         pendiente: settingsQ.map.get('msg_status_pendiente') ?? '',
+        diagnostico: settingsQ.map.get('msg_status_diagnostico') ?? '',
         en_espera: settingsQ.map.get('msg_status_en_espera') ?? '',
         reparando: settingsQ.map.get('msg_status_reparando') ?? '',
         listo: settingsQ.map.get('msg_status_listo') ?? '',
@@ -447,6 +448,7 @@ function AutoNotifyToggle({
 function defaultTemplateFor(status: string): string {
   const map: Record<string, string> = {
     pendiente: 'Hola {customer}, recibimos tu equipo (orden #{folio}) y pronto iniciaremos el diagnóstico.',
+    diagnostico: 'Hola {customer}, ya hicimos el diagnóstico de tu equipo (orden #{folio}). Te lo compartimos por aparte.',
     en_espera: 'Hola {customer}, tu equipo (orden #{folio}) está en espera (pendiente de refacción o confirmación).',
     reparando: 'Hola {customer}, ya comenzamos la reparación de tu equipo (orden #{folio}).',
     listo: '¡Hola {customer}! Tu equipo (orden #{folio}) ya está listo para recoger 🎉',

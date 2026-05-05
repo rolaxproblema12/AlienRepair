@@ -4,6 +4,7 @@ import { STATUS_LABELS } from '@/features/orders/types';
 
 const VARIANT: Record<OrderStatus, 'muted' | 'secondary' | 'default' | 'success' | 'warning'> = {
   pendiente: 'muted',
+  diagnostico: 'default',
   en_espera: 'warning',
   reparando: 'default',
   listo: 'success',

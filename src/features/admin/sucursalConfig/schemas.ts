@@ -48,6 +48,7 @@ export type SucursalConfigInput = z.infer<typeof sucursalConfigSchema>;
 // `msg_status_<order_status>` para que sea trivial mapearlas.
 export const ORDER_STATUS_KEYS = [
   'pendiente',
+  'diagnostico',
   'en_espera',
   'reparando',
   'listo',
@@ -58,6 +59,7 @@ export type OrderStatusKey = (typeof ORDER_STATUS_KEYS)[number];
 
 export const STATUS_TEMPLATE_LABELS: Record<OrderStatusKey, string> = {
   pendiente: 'Recibido / Pendiente',
+  diagnostico: 'Diagnóstico (cambio manual desde el select)',
   en_espera: 'En espera',
   reparando: 'En reparación',
   listo: 'Listo para recoger',
@@ -66,6 +68,7 @@ export const STATUS_TEMPLATE_LABELS: Record<OrderStatusKey, string> = {
 
 export const whatsappTemplatesSchema = z.object({
   pendiente: z.string().max(500).optional(),
+  diagnostico: z.string().max(500).optional(),
   en_espera: z.string().max(500).optional(),
   reparando: z.string().max(500).optional(),
   listo: z.string().max(500).optional(),

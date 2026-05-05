@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Wrench } from 'lucide-react';
+import { Plus, Search, Stethoscope, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DndContext,
@@ -20,6 +20,7 @@ import {
   type OrderWithCustomer,
 } from '@/features/orders/types';
 import OrderKanbanColumn from '@/components/orders/OrderKanbanColumn';
+import NewDiagnosisDialog from '@/features/orders/NewDiagnosisDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +34,7 @@ export default function OrdersListPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [view, setView] = useState<View>('all');
+  const [diagnosisOpen, setDiagnosisOpen] = useState(false);
   const isSearching = debouncedSearch.trim().length > 0;
 
   const { data, isLoading } = useOrders({
@@ -55,14 +57,14 @@ export default function OrdersListPage() {
   }, [data, view]);
 
   const byStatus = useMemo(() => {
-    const grouped: Record<OrderStatus, OrderWithCustomer[]> = {
-      pendiente: [],
-      en_espera: [],
-      reparando: [],
-      listo: [],
-      entregado: [],
-    };
-    for (const o of filtered) grouped[o.status].push(o);
+    const grouped = ORDER_STATUSES.reduce(
+      (acc, s) => {
+        acc[s] = [];
+        return acc;
+      },
+      {} as Record<OrderStatus, OrderWithCustomer[]>,
+    );
+    for (const o of filtered) grouped[o.status]?.push(o);
     return grouped;
   }, [filtered]);
 
@@ -105,6 +107,10 @@ export default function OrdersListPage() {
             />
           </div>
           <ViewTabs value={view} onChange={setView} />
+          <Button variant="outline" onClick={() => setDiagnosisOpen(true)}>
+            <Stethoscope className="mr-2 h-4 w-4" />
+            Nuevo diagnóstico
+          </Button>
           <Button asChild>
             <Link to="/reparaciones/nueva">
               <Plus className="mr-2 h-4 w-4" />
@@ -114,8 +120,10 @@ export default function OrdersListPage() {
         </div>
       </div>
 
+      <NewDiagnosisDialog open={diagnosisOpen} onOpenChange={setDiagnosisOpen} />
+
       {isLoading ? (
-        <div className="grid flex-1 gap-4 px-8 py-6 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid auto-rows-min items-start gap-4 px-8 py-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {ORDER_STATUSES.map((s) => (
             <div key={s} className="space-y-2">
               <Skeleton className="h-6 w-32" />
@@ -131,7 +139,7 @@ export default function OrdersListPage() {
         </div>
       ) : (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="grid flex-1 gap-4 overflow-x-auto px-8 py-6 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid auto-rows-min items-start gap-4 px-8 py-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {ORDER_STATUSES.map((status) => (
               <OrderKanbanColumn
                 key={status}

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useUpdateOrderStatus } from './hooks';
+import { STATUS_LABELS } from './types';
 import type { OrderStatus, OrderWithCustomer } from './types';
 import { useCurrentSucursal } from '@/features/sucursales/hooks';
 import { useSucursalSettingsMap } from '@/features/admin/sucursalConfig/hooks';
@@ -55,7 +56,7 @@ function notifyStatusChange(
     { shopName, template },
   );
 
-  toast.success(`Estatus actualizado a "${order.status}"`, {
+  toast.success(`Estatus actualizado a "${STATUS_LABELS[order.status]}"`, {
     description: `Notificar a ${order.customer.name} por WhatsApp?`,
     duration: 8_000,
     action: {
