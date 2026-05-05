@@ -38,6 +38,8 @@ export const repairOrderSchema = z
     status: z
       .enum(['pendiente', 'en_espera', 'reparando', 'listo', 'entregado'])
       .default('pendiente'),
+    /** Si esta OS es reclamo de garantía de otra (id de la OS original). */
+    warranty_claim_of: z.string().uuid().optional().nullable(),
   })
   .refine((d) => d.down_payment <= d.cost, {
     message: 'El anticipo no puede ser mayor al costo',

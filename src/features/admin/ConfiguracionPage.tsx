@@ -132,6 +132,7 @@ function ShopDataTab({ sucursalId }: { sucursalId: string }) {
       web: null,
       logo_url: null,
       warranty_message: null,
+      warranty_days: 30,
     },
   });
 
@@ -147,6 +148,7 @@ function ShopDataTab({ sucursalId }: { sucursalId: string }) {
         web: configQ.data.web ?? '',
         logo_url: configQ.data.logo_url ?? '',
         warranty_message: configQ.data.warranty_message ?? '',
+        warranty_days: configQ.data.warranty_days ?? 30,
       } as SucursalConfigInput);
     }
   }, [configQ.data, reset]);
@@ -218,9 +220,26 @@ function ShopDataTab({ sucursalId }: { sucursalId: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Mensaje de garantía en tickets</CardTitle>
+          <CardTitle>Garantía</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <Field
+            label="Días de garantía sobre reparaciones entregadas"
+            error={errors.warranty_days?.message}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={730}
+              step={1}
+              {...register('warranty_days', { valueAsNumber: true })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Cuando se cree una nueva OS para un cliente que tenga una OS
+              entregada hace menos de este número de días, el sistema avisa
+              al operador para que pueda marcarla como reclamo de garantía.
+            </p>
+          </Field>
           <Field
             label="Texto que aparece al pie de los tickets impresos (orden, recibo, venta)"
             error={errors.warranty_message?.message}

@@ -14,6 +14,7 @@ export interface Sucursal {
   web: string | null;
   logo_url: string | null;
   warranty_message: string | null;
+  warranty_days: number;
 }
 
 export interface SucursalSetting {

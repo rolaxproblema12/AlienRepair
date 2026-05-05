@@ -33,6 +33,8 @@ export interface Order {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Si es reclamo de garantía, apunta a la OS original entregada (id). */
+  warranty_claim_of: string | null;
 }
 
 export interface OrderWithCustomer extends Order {

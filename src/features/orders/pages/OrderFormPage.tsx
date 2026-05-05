@@ -4,7 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCustomerActiveOrders } from '@/features/customers/hooks';
+import {
+  useCustomerActiveOrders,
+  useCustomerWarrantyOrders,
+} from '@/features/customers/hooks';
+import { useCurrentSucursal } from '@/features/sucursales/hooks';
 import { useOrder, useSaveRepairOrder } from '../hooks';
 import { repairOrderSchema, type RepairOrderInput } from '../schemas';
 import {
@@ -63,6 +67,7 @@ export default function OrderFormPage() {
       estimated_delivery: '',
       notes: '',
       status: 'pendiente',
+      warranty_claim_of: null,
     },
   });
 
@@ -81,6 +86,7 @@ export default function OrderFormPage() {
         estimated_delivery: existing.data.estimated_delivery ?? '',
         notes: existing.data.notes ?? '',
         status: existing.data.status,
+        warranty_claim_of: existing.data.warranty_claim_of ?? null,
       });
     }
   }, [id, existing.data, reset]);
@@ -88,7 +94,15 @@ export default function OrderFormPage() {
   const selectedCustomerId = watch('customer_id');
   const cost = watch('cost');
   const down = watch('down_payment');
+  const warrantyClaimOf = watch('warranty_claim_of');
   const activeOrders = useCustomerActiveOrders(selectedCustomerId || undefined);
+  const { current: sucursal } = useCurrentSucursal();
+  const warrantyOrders = useCustomerWarrantyOrders(
+    selectedCustomerId || undefined,
+    sucursal?.warranty_days ?? 0,
+  );
+  // Excluir esta misma OS al editar (no avisar de "garantía de sí misma").
+  const eligibleWarranty = (warrantyOrders.data ?? []).filter((o) => o.id !== id);
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -139,6 +153,63 @@ export default function OrderFormPage() {
               <Badge variant="warning">
                 Este cliente tiene {activeOrders.data} órden(es) activa(s) además de ésta.
               </Badge>
+            )}
+
+            {eligibleWarranty.length > 0 && !id && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <p className="font-medium text-amber-200">
+                  ⚠️ Posible reclamo de garantía
+                </p>
+                <p className="mt-1 text-xs text-amber-100/80">
+                  Este cliente tiene {eligibleWarranty.length} OS entregada(s)
+                  dentro de los últimos {sucursal?.warranty_days ?? 0} días.
+                  Si esta nueva OS es por la misma falla, marcala como
+                  reclamo de garantía:
+                </p>
+                <div className="mt-2 space-y-1">
+                  {eligibleWarranty.map((o) => {
+                    const days = Math.floor(
+                      (Date.now() - new Date(o.delivered_at).getTime()) /
+                        86_400_000,
+                    );
+                    const isPicked = warrantyClaimOf === o.id;
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() =>
+                          setValue('warranty_claim_of', isPicked ? null : o.id, {
+                            shouldDirty: true,
+                          })
+                        }
+                        className={`flex w-full items-center justify-between rounded border px-2 py-1.5 text-left text-xs transition ${
+                          isPicked
+                            ? 'border-amber-400 bg-amber-500/20'
+                            : 'border-amber-500/30 bg-transparent hover:bg-amber-500/10'
+                        }`}
+                      >
+                        <span>
+                          <span className="font-mono">#{o.folio}</span>
+                          <span className="ml-2 text-amber-100/70">
+                            {[o.brand, o.model].filter(Boolean).join(' ')}
+                            {o.problem ? ` · ${o.problem}` : ''}
+                          </span>
+                        </span>
+                        <span className="text-amber-100/60">
+                          hace {days} día{days === 1 ? '' : 's'}
+                          {isPicked && ' ✓'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {warrantyClaimOf && (
+                  <p className="mt-2 text-xs text-amber-200">
+                    Marcada como reclamo de garantía. Considera poner cost=0
+                    si no se cobra al cliente.
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

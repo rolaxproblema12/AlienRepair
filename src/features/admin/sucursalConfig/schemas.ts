@@ -34,6 +34,12 @@ export const sucursalConfigSchema = z.object({
     .or(z.literal(''))
     .transform((v) => (v === '' || v == null ? null : v)),
   warranty_message: optionalText(500),
+  warranty_days: z.coerce
+    .number()
+    .int()
+    .min(0, 'Mínimo 0')
+    .max(730, 'Máximo 730 (2 años)')
+    .default(30),
 });
 
 export type SucursalConfigInput = z.infer<typeof sucursalConfigSchema>;

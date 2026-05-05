@@ -4,7 +4,7 @@ import type { Sucursal, SucursalSetting } from '@/features/sucursales/types';
 import type { SucursalConfigInput } from './schemas';
 
 const SUCURSAL_COLUMNS =
-  'id, code, name, address, phone, active, created_at, updated_at, rfc, email, web, logo_url, warranty_message';
+  'id, code, name, address, phone, active, created_at, updated_at, rfc, email, web, logo_url, warranty_message, warranty_days';
 
 // Lee la fila completa de una sucursal — todos los campos editables en
 // la página de configuración. Distinta de useCurrentSucursal porque acá

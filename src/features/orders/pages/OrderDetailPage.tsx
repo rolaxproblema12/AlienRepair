@@ -74,7 +74,18 @@ export default function OrderDetailPage() {
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Orden #{o.folio}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-semibold tracking-tight">Orden #{o.folio}</h1>
+            {o.warranty_claim_of && (
+              <Link
+                to={`/reparaciones/${o.warranty_claim_of}`}
+                className="inline-flex items-center rounded bg-amber-500/15 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-amber-400 hover:bg-amber-500/25"
+                title="Esta OS es reclamo de garantía — click para ver la original"
+              >
+                ⚠️ Garantía
+              </Link>
+            )}
+          </div>
           <p className="text-muted-foreground">Ingresó {formatDateTime(o.received_at)}</p>
         </div>
         <div className="flex gap-2">

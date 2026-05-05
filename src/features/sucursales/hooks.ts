@@ -7,7 +7,7 @@ import type { Sucursal } from './types';
 import type { SucursalInput } from './schemas';
 
 const SUCURSAL_COLUMNS =
-  'id, code, name, address, phone, active, created_at, updated_at, rfc, email, web, logo_url, warranty_message';
+  'id, code, name, address, phone, active, created_at, updated_at, rfc, email, web, logo_url, warranty_message, warranty_days';
 
 // Lista las sucursales que el usuario actual puede operar.
 // RLS: la tabla `sucursales` filtra por user_can_access_sucursal(id), así que

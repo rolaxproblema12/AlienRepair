@@ -10,7 +10,7 @@ import type { ItemOrderInput } from './itemSchema';
 const LIST_COLUMNS = `
   id, folio, customer_id, kind, device_type, brand, model, color, problem, item_description,
   device_password, cost, down_payment, status, received_at, estimated_delivery,
-  delivered_at, notes, created_by, created_at, updated_at,
+  delivered_at, notes, created_by, created_at, updated_at, warranty_claim_of,
   customer:customers!inner(id, name, phone)
 `;
 
@@ -153,6 +153,7 @@ export function useSaveRepairOrder() {
         estimated_delivery: values.estimated_delivery || null,
         notes: values.notes?.trim() || null,
         status: values.status,
+        warranty_claim_of: values.warranty_claim_of ?? null,
       };
 
       if (id) {
