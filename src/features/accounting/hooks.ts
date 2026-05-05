@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import type {
@@ -20,6 +25,54 @@ interface ExpenseFilter {
   from?: string;
   to?: string;
   orderId?: string;
+}
+
+// 50 es un buen compromiso para gastos: la mayoría de shops registra
+// 5-15 gastos al mes, pero cuando el contador pide reportes anuales
+// quiere bajar todo de un click.
+//
+// IMPORTANTE: cualquier mutation que invalide ['expenses', sucursalId] DEBE
+// invalidar también ['expenses-infinite', sucursalId]. Mismo patrón que
+// sales — dos cachés separados, hay que tocarlos juntos.
+const EXPENSES_PAGE_SIZE = 50;
+
+/**
+ * Versión paginada de useExpenses para ExpensesPage. Igual que
+ * useInfiniteSales: la UI flatMapea pages → array y muestra botón
+ * "Cargar más" cuando hasNextPage es true.
+ *
+ * useExpenses (no paginado, capeo 500) sigue existiendo para casos
+ * donde el caller solo necesita un summary count.
+ */
+export function useInfiniteExpenses(filter: ExpenseFilter = {}) {
+  const sucursalId = useScopedSucursalId();
+  return useInfiniteQuery({
+    queryKey: ['expenses-infinite', sucursalId, filter],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const fromIdx = pageParam * EXPENSES_PAGE_SIZE;
+      const toIdx = fromIdx + EXPENSES_PAGE_SIZE - 1;
+      let q = supabase
+        .from('expenses')
+        .select(EXPENSE_COLUMNS)
+        .eq('sucursal_id', sucursalId)
+        .order('spent_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(fromIdx, toIdx);
+      if (filter.kind && filter.kind !== 'all') q = q.eq('kind', filter.kind);
+      if (filter.from) q = q.gte('spent_at', filter.from);
+      if (filter.to) q = q.lte('spent_at', filter.to);
+      if (filter.orderId) q = q.eq('order_id', filter.orderId);
+      const { data, error } = await q;
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as ExpenseWithOrder[];
+      return {
+        rows,
+        nextPage: rows.length === EXPENSES_PAGE_SIZE ? pageParam + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
 }
 
 export function useExpenses(filter: ExpenseFilter = {}) {
@@ -86,6 +139,7 @@ export function useSaveExpense() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['expenses-infinite'] });
       qc.invalidateQueries({ queryKey: ['accounting', 'daily'] });
       qc.invalidateQueries({ queryKey: ['dashboard-revenue-7d'] });
     },
@@ -101,6 +155,7 @@ export function useDeleteExpense() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['expenses-infinite'] });
       qc.invalidateQueries({ queryKey: ['accounting', 'daily'] });
       qc.invalidateQueries({ queryKey: ['dashboard-revenue-7d'] });
     },

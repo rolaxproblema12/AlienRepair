@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit2, Plus, Receipt, Trash2 } from 'lucide-react';
+import { ChevronDown, Edit2, Plus, Receipt, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useExpenses, useDeleteExpense } from './hooks';
+import { useInfiniteExpenses, useDeleteExpense } from './hooks';
 import { EXPENSE_KIND_LABELS, type ExpenseWithOrder } from './types';
 import ExpenseFormDialog from './ExpenseFormDialog';
 import { Button } from '@/components/ui/button';
@@ -43,10 +43,15 @@ export default function ExpensesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithOrder | null>(null);
 
-  const { data, isLoading } = useExpenses({ kind: kindFilter, from, to });
+  const expensesQ = useInfiniteExpenses({ kind: kindFilter, from, to });
   const del = useDeleteExpense();
+  const isLoading = expensesQ.isLoading;
+  // flatMap todas las páginas — render como array plano + botón "Cargar más".
+  const data = expensesQ.data?.pages.flatMap((p) => p.rows) ?? [];
 
-  const total = (data ?? []).reduce((acc, e) => acc + Number(e.amount), 0);
+  // Total parcial: solo de las páginas cargadas. Si el usuario quiere el
+  // total real del rango debe cargar todas las páginas (botón "Cargar más").
+  const total = data.reduce((acc, e) => acc + Number(e.amount), 0);
 
   async function handleDelete(id: string) {
     if (!confirm('¿Eliminar este gasto?')) return;
@@ -117,8 +122,15 @@ export default function ExpensesPage() {
           />
         </div>
         <div className="ml-auto rounded-md border border-border px-4 py-2 text-sm">
-          <span className="text-muted-foreground">Total en rango: </span>
+          <span className="text-muted-foreground">
+            {expensesQ.hasNextPage ? 'Total parcial: ' : 'Total en rango: '}
+          </span>
           <span className="font-semibold">{currency(total)}</span>
+          {expensesQ.hasNextPage && (
+            <span className="ml-1 text-xs text-amber-400">
+              (carga más páginas para el total real)
+            </span>
+          )}
         </div>
       </div>
 
@@ -128,7 +140,7 @@ export default function ExpensesPage() {
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
-        ) : !data?.length ? (
+        ) : !data.length ? (
           <CardContent className="flex flex-col items-center gap-3 p-12 text-center text-muted-foreground">
             <Receipt className="h-10 w-10" />
             <p>Sin gastos en el rango seleccionado.</p>
@@ -195,6 +207,19 @@ export default function ExpensesPage() {
               ))}
             </TableBody>
           </Table>
+        )}
+        {expensesQ.hasNextPage && (
+          <div className="border-t border-border p-2">
+            <button
+              type="button"
+              onClick={() => expensesQ.fetchNextPage()}
+              disabled={expensesQ.isFetchingNextPage}
+              className="inline-flex w-full items-center justify-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50"
+            >
+              <ChevronDown className="h-3 w-3" />
+              {expensesQ.isFetchingNextPage ? 'Cargando...' : 'Cargar más'}
+            </button>
+          </div>
         )}
       </Card>
 

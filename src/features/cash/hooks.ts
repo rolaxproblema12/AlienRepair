@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import type {
@@ -27,6 +32,16 @@ const SALE_COLUMNS = `
   customer:customers(id, name, phone)
 `;
 
+// Columnas explícitas del tipo CashSession. select('*') traería también
+// sucursal_id que no exponemos en el tipo — no es un costo grande pero
+// que el contrato tabla↔tipo sea 1:1 ayuda a detectar drift.
+const CASH_SESSION_COLUMNS =
+  'id, status, opened_at, opened_by, opening_amount, closed_at, closed_by, expected_cash, counted_cash, difference, closing_notes';
+
+// Idem para sale_items: el tipo SaleItem no incluye sucursal_id ni created_at.
+const SALE_ITEM_COLUMNS =
+  'id, sale_id, kind, product_id, order_id, description, quantity, unit_price, unit_cost, iva_rate, discount, line_total';
+
 // =====================================================
 // Sesión de caja
 // =====================================================
@@ -38,7 +53,7 @@ export function useCurrentSession() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cash_sessions')
-        .select('*')
+        .select(CASH_SESSION_COLUMNS)
         .eq('sucursal_id', sucursalId)
         .eq('status', 'open')
         .maybeSingle();
@@ -56,7 +71,7 @@ export function useSession(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cash_sessions')
-        .select('*')
+        .select(CASH_SESSION_COLUMNS)
         .eq('id', id!)
         .single();
       if (error) throw error;
@@ -190,6 +205,61 @@ interface SalesFilter {
   status?: 'all' | 'completada' | 'cancelada';
 }
 
+// Page size para SalesHistoryPage. 20 es el "collapse threshold" que tenía
+// la UI antes de paginar de verdad — mantener ese valor minimiza el cambio
+// percibido para el usuario.
+//
+// IMPORTANTE: cualquier mutation que invalide ['sales', sucursalId] DEBE
+// invalidar también ['sales-infinite', sucursalId]. Son dos cachés separados
+// que sirven la misma data en formatos distintos. Si te olvidás de uno,
+// la UI muestra datos stale hasta el próximo refresh manual.
+const SALES_PAGE_SIZE = 20;
+
+/**
+ * Versión paginada de useSales para tablas grandes (SalesHistoryPage).
+ * Devuelve InfiniteData que la UI flatMapea a un array plano + boolean
+ * hasNextPage para mostrar el botón "Cargar más".
+ *
+ * Mantenemos useSales (no paginado, capeo 500) para CommandPalette y
+ * CashRegisterPage que solo muestran la primera página.
+ */
+export function useInfiniteSales(filter: SalesFilter = {}) {
+  const sucursalId = useScopedSucursalId();
+  return useInfiniteQuery({
+    queryKey: ['sales-infinite', sucursalId, filter],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const fromIdx = pageParam * SALES_PAGE_SIZE;
+      const toIdx = fromIdx + SALES_PAGE_SIZE - 1;
+      let q = supabase
+        .from('sales')
+        .select(SALE_COLUMNS)
+        .eq('sucursal_id', sucursalId)
+        .order('created_at', { ascending: false })
+        .range(fromIdx, toIdx);
+
+      if (filter.from) q = q.gte('created_at', `${filter.from}T00:00:00`);
+      if (filter.to) q = q.lte('created_at', `${filter.to}T23:59:59`);
+      if (filter.paymentMethod && filter.paymentMethod !== 'all') {
+        q = q.eq('payment_method', filter.paymentMethod);
+      }
+      if (filter.status && filter.status !== 'all') q = q.eq('status', filter.status);
+      if (filter.search?.trim()) {
+        q = q.ilike('folio', `%${filter.search.trim()}%`);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as SaleWithCustomer[];
+      return {
+        rows,
+        nextPage: rows.length === SALES_PAGE_SIZE ? pageParam + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
+}
+
 export function useSales(filter: SalesFilter = {}) {
   const sucursalId = useScopedSucursalId();
   return useQuery({
@@ -235,7 +305,7 @@ export function useSale(id: string | undefined) {
         supabase.from('sales').select(SALE_COLUMNS).eq('id', id!).single(),
         supabase
           .from('sale_items')
-          .select('*')
+          .select(SALE_ITEM_COLUMNS)
           .eq('sale_id', id!)
           .order('id'),
         supabase
@@ -372,16 +442,18 @@ export function useCreateSale() {
       return created;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['sales'] });
+      qc.invalidateQueries({ queryKey: ['sales', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['sales-infinite', sucursalId] });
       qc.invalidateQueries({ queryKey: ['day-balance'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
-      qc.invalidateQueries({ queryKey: ['order-balance'] });
-      qc.invalidateQueries({ queryKey: ['order-payments'] });
+      qc.invalidateQueries({ queryKey: ['products', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['order-balance', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['order-payments', sucursalId] });
     },
   });
 }
 
 export function useCancelSale() {
+  const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
@@ -400,13 +472,14 @@ export function useCancelSale() {
       if (error) throw error;
       return data as unknown as SaleWithCustomer;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['sales'] });
-      qc.invalidateQueries({ queryKey: ['sale'] });
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['sales', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['sales-infinite', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['sale', sucursalId, vars.id] });
       qc.invalidateQueries({ queryKey: ['day-balance'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
-      qc.invalidateQueries({ queryKey: ['order-balance'] });
-      qc.invalidateQueries({ queryKey: ['order-payments'] });
+      qc.invalidateQueries({ queryKey: ['products', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['order-balance', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['order-payments', sucursalId] });
     },
   });
 }
@@ -673,6 +746,7 @@ export function useReturnSaleItem() {
       qc.invalidateQueries({ queryKey: ['sale-returns', vars.sale_id] });
       qc.invalidateQueries({ queryKey: ['sale', sucursalId, vars.sale_id] });
       qc.invalidateQueries({ queryKey: ['sales', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['sales-infinite', sucursalId] });
       qc.invalidateQueries({ queryKey: ['day-balance'] });
       qc.invalidateQueries({ queryKey: ['products', sucursalId] });
       if (vars.order_id) {

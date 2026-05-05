@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Receipt, Search } from 'lucide-react';
-import { useSales } from './hooks';
+import { ArrowLeft, ChevronDown, Receipt, Search } from 'lucide-react';
+import { useInfiniteSales } from './hooks';
 import {
   PAYMENT_METHOD_ACCENT,
   PAYMENT_METHOD_LABELS,
@@ -32,8 +32,6 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const ROW_LIMIT = 20;
-
 export default function SalesHistoryPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -43,27 +41,20 @@ export default function SalesHistoryPage() {
   const [to, setTo] = useState('');
   const debouncedFrom = useDebouncedValue(from, 400);
   const debouncedTo = useDebouncedValue(to, 400);
-  const [expanded, setExpanded] = useState(false);
 
-  const { data, isLoading } = useSales({
+  const salesQ = useInfiniteSales({
     search: debouncedSearch,
     paymentMethod,
     status,
     from: debouncedFrom || undefined,
     to: debouncedTo || undefined,
   });
+  const isLoading = salesQ.isLoading;
 
-  const isFiltering =
-    debouncedSearch.trim().length > 0 ||
-    paymentMethod !== 'all' ||
-    status !== 'all' ||
-    !!debouncedFrom ||
-    !!debouncedTo;
-
-  const total = data?.length ?? 0;
-  const collapsed = !isFiltering && !expanded && total > ROW_LIMIT;
-  const visible = collapsed ? data!.slice(0, ROW_LIMIT) : data ?? [];
-  const hidden = total - visible.length;
+  // flatMap todas las páginas cargadas hasta ahora para renderizar como
+  // un único array. La UI muestra "Cargar más" si hasNextPage es true.
+  const visible = salesQ.data?.pages.flatMap((p) => p.rows) ?? [];
+  const total = visible.length;
 
   return (
     <div className="space-y-6 p-8">
@@ -77,6 +68,7 @@ export default function SalesHistoryPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Historial de ventas</h1>
           <p className="text-sm text-muted-foreground">
             {total} {total === 1 ? 'venta' : 'ventas'}
+            {salesQ.hasNextPage && ' cargadas · hay más, click "Cargar más"'}
           </p>
         </div>
       </div>
@@ -207,27 +199,17 @@ export default function SalesHistoryPage() {
           </Table>
         )}
 
-        {!isFiltering && total > ROW_LIMIT && (
+        {salesQ.hasNextPage && (
           <div className="border-t border-border p-2">
-            {collapsed ? (
-              <button
-                type="button"
-                onClick={() => setExpanded(true)}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <ChevronDown className="h-3 w-3" />
-                Ver {hidden} más
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setExpanded(false)}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <ChevronUp className="h-3 w-3" />
-                Mostrar menos
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => salesQ.fetchNextPage()}
+              disabled={salesQ.isFetchingNextPage}
+              className="inline-flex w-full items-center justify-center gap-1 rounded-md py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50"
+            >
+              <ChevronDown className="h-3 w-3" />
+              {salesQ.isFetchingNextPage ? 'Cargando...' : 'Cargar más'}
+            </button>
           </div>
         )}
       </Card>
