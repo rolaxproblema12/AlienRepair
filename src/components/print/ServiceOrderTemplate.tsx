@@ -1,5 +1,12 @@
-import type { OrderWithCustomer } from '@/features/orders/types';
-import { DEVICE_TYPE_LABELS, KIND_LABELS, STATUS_LABELS } from '@/features/orders/types';
+import type { IntakeChecklistItemStatus, OrderWithCustomer } from '@/features/orders/types';
+import {
+  DEVICE_TYPE_LABELS,
+  INTAKE_CHECKLIST_ITEMS,
+  INTAKE_CHECKLIST_REASON_LABELS,
+  INTAKE_CHECKLIST_STATUS_LABELS,
+  KIND_LABELS,
+  STATUS_LABELS,
+} from '@/features/orders/types';
 import type { Sucursal } from '@/features/sucursales/types';
 import PrintHeader from './PrintHeader';
 import { formatDate, formatDateTime } from '@/lib/dates';
@@ -67,6 +74,13 @@ export default function ServiceOrderTemplate({ order, variant, sucursal }: Props
         )}
       </div>
 
+      {order.kind === 'reparacion' && order.diagnosis && (
+        <>
+          <div className="print-section-title">Diagnóstico</div>
+          <p style={{ whiteSpace: 'pre-wrap', margin: '4px 0' }}>{order.diagnosis}</p>
+        </>
+      )}
+
       <div className="print-section-title">Recepción</div>
       <div className="print-kv">
         <span>Ingresó:</span>
@@ -76,6 +90,84 @@ export default function ServiceOrderTemplate({ order, variant, sucursal }: Props
         <span>Estatus:</span>
         <span>{STATUS_LABELS[order.status]}</span>
       </div>
+
+      {order.kind === 'reparacion' && order.intake_checklist_applies !== null && (
+        <>
+          <div className="print-section-title">Estado del equipo al ingresar</div>
+          {order.intake_checklist_applies === false ? (
+            <div className="print-kv">
+              <span>Checklist:</span>
+              <span>
+                No aplica
+                {order.intake_checklist_reason
+                  ? ` — ${INTAKE_CHECKLIST_REASON_LABELS[order.intake_checklist_reason]}`
+                  : ''}
+              </span>
+              {order.intake_checklist_reason === 'otro' &&
+                order.intake_checklist_reason_other && (
+                  <>
+                    <span>Detalle:</span>
+                    <span style={{ whiteSpace: 'pre-wrap' }}>
+                      {order.intake_checklist_reason_other}
+                    </span>
+                  </>
+                )}
+            </div>
+          ) : (
+            <table className="print-table">
+              <tbody>
+                <tr>
+                  <td>Batería</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {order.intake_checklist?.bateria_porcentaje !== null &&
+                    order.intake_checklist?.bateria_porcentaje !== undefined
+                      ? `${order.intake_checklist.bateria_porcentaje}%`
+                      : '—'}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Trae funda</td>
+                  <td style={{ textAlign: 'right' }}>
+                    {order.intake_checklist?.trae_funda ? 'Sí' : 'No'}
+                  </td>
+                </tr>
+                {INTAKE_CHECKLIST_ITEMS.map((item) => {
+                  const status = (order.intake_checklist?.[item.key] ??
+                    'nc') as IntakeChecklistItemStatus;
+                  return (
+                    <tr key={item.key}>
+                      <td>{item.label}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {INTAKE_CHECKLIST_STATUS_LABELS[status]}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+
+      {order.warranty_void && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            border: '2px solid #b00020',
+            background: '#fff5f5',
+            color: '#b00020',
+            fontSize: compact ? '8.5pt' : '10pt',
+            fontWeight: 700,
+            textAlign: 'center',
+          }}
+        >
+          ESTE EQUIPO NO RECIBE GARANTÍA
+          {order.warranty_void_reason
+            ? ` — Razón: ${voidReasonLabel(order.warranty_void_reason)}`
+            : ''}
+        </div>
+      )}
 
       <div className="print-section-title">Importes</div>
       <table className="print-table">
@@ -151,4 +243,17 @@ export default function ServiceOrderTemplate({ order, variant, sucursal }: Props
       </div>
     </div>
   );
+}
+
+function voidReasonLabel(reason: string): string {
+  switch (reason) {
+    case 'mojado':
+      return 'humedad / líquidos';
+    case 'sin_codigo':
+      return 'sin código de desbloqueo';
+    case 'manual':
+      return 'condición especial';
+    default:
+      return reason;
+  }
 }

@@ -10,7 +10,9 @@ import type { ItemOrderInput } from './itemSchema';
 const LIST_COLUMNS = `
   id, folio, customer_id, kind, device_type, brand, model, color, problem, item_description,
   device_password, cost, down_payment, status, received_at, estimated_delivery,
-  delivered_at, notes, created_by, created_at, updated_at, warranty_claim_of,
+  delivered_at, notes, diagnosis, created_by, created_at, updated_at, warranty_claim_of,
+  intake_checklist_applies, intake_checklist_reason, intake_checklist_reason_other,
+  intake_checklist, warranty_void, warranty_void_reason,
   customer:customers!inner(id, name, phone)
 `;
 
@@ -158,6 +160,20 @@ export function useSaveRepairOrder() {
         notes: values.notes?.trim() || null,
         status: values.status,
         warranty_claim_of: values.warranty_claim_of ?? null,
+        intake_checklist_applies: values.intake_checklist_applies,
+        intake_checklist_reason:
+          values.intake_checklist_applies === false ? values.intake_checklist_reason : null,
+        intake_checklist_reason_other:
+          values.intake_checklist_applies === false &&
+          values.intake_checklist_reason === 'otro'
+            ? values.intake_checklist_reason_other?.trim() || null
+            : null,
+        intake_checklist:
+          values.intake_checklist_applies === true ? values.intake_checklist : null,
+        warranty_void: values.warranty_void,
+        warranty_void_reason: values.warranty_void
+          ? values.warranty_void_reason?.trim() || null
+          : null,
       };
 
       if (id) {
@@ -403,6 +419,49 @@ export function useUpdateOrderStatus() {
       qc.invalidateQueries({ queryKey: ['order', sucursalId, vars.id] });
       qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
       qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
+    },
+  });
+}
+
+/**
+ * Guarda el diagnóstico técnico de una OS de reparación.
+ * Si el status actual es `pendiente`, lo cambia a `diagnostico` automáticamente.
+ * En cualquier otro status, lo respeta (no se quiere regresar de `reparando`/`listo`).
+ */
+export function useSaveDiagnosis(orderId: string) {
+  const sucursalId = useScopedSucursalId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { diagnosis: string; currentStatus: OrderStatus }) => {
+      const { data: auth } = await supabase.auth.getUser();
+      const newStatus: OrderStatus =
+        input.currentStatus === 'pendiente' ? 'diagnostico' : input.currentStatus;
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          diagnosis: input.diagnosis.trim(),
+          status: newStatus,
+          updated_by: auth.user?.id,
+        })
+        .eq('id', orderId)
+        .select(LIST_COLUMNS)
+        .single();
+      if (error) throw error;
+      return data as unknown as OrderWithCustomer;
+    },
+    onSettled: (data) => {
+      qc.invalidateQueries({ queryKey: ['orders', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-agenda', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['order', sucursalId, orderId] });
+      qc.invalidateQueries({ queryKey: ['order-balance', sucursalId, orderId] });
+      if (data?.customer_id) {
+        qc.invalidateQueries({
+          queryKey: ['customer-orders', sucursalId, data.customer_id],
+        });
+        qc.invalidateQueries({
+          queryKey: ['customer-active-orders', sucursalId, data.customer_id],
+        });
+      }
     },
   });
 }

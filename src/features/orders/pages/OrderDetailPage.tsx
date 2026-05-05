@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, DollarSign, Edit, MessageCircle } from 'lucide-react';
+import { ArrowLeft, DollarSign, Edit, MessageCircle, Stethoscope } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDeleteOrder, useOrder } from '../hooks';
+import DiagnosisDialog from '../DiagnosisDialog';
 import {
   useOrderBalance,
   useOrderPayments,
@@ -15,7 +16,14 @@ import OrderPaymentDialog from '@/features/cash/OrderPaymentDialog';
 import OrderPartsSection from '@/features/parts/OrderPartsSection';
 import OrderStatusSelect from '@/components/orders/OrderStatusSelect';
 import PrintOrderMenu from '@/components/orders/PrintOrderMenu';
-import { DEVICE_TYPE_LABELS, supportsDevicePassword } from '../types';
+import {
+  DEVICE_TYPE_LABELS,
+  INTAKE_CHECKLIST_ITEMS,
+  INTAKE_CHECKLIST_REASON_LABELS,
+  INTAKE_CHECKLIST_STATUS_LABELS,
+  supportsDevicePassword,
+} from '../types';
+import type { IntakeChecklistItemStatus, OrderWithCustomer } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,6 +50,7 @@ export default function OrderDetailPage() {
   const balanceQ = useOrderBalance(id);
   const paymentsQ = useOrderPayments(id);
   const [payOpen, setPayOpen] = useState(false);
+  const [diagnosisOpen, setDiagnosisOpen] = useState(false);
 
   if (order.isLoading) {
     return (
@@ -85,6 +94,18 @@ export default function OrderDetailPage() {
                 ⚠️ Garantía
               </Link>
             )}
+            {o.warranty_void && (
+              <span
+                className="inline-flex items-center rounded bg-destructive/15 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-destructive"
+                title={
+                  o.warranty_void_reason
+                    ? `Sin garantía — ${o.warranty_void_reason}`
+                    : 'Sin garantía'
+                }
+              >
+                Sin garantía
+              </span>
+            )}
           </div>
           <p className="text-muted-foreground">Ingresó {formatDateTime(o.received_at)}</p>
         </div>
@@ -101,6 +122,12 @@ export default function OrderDetailPage() {
             >
               <MessageCircle className="mr-2 h-4 w-4" />
               WhatsApp
+            </Button>
+          )}
+          {o.kind === 'reparacion' && (
+            <Button variant="outline" onClick={() => setDiagnosisOpen(true)}>
+              <Stethoscope className="mr-2 h-4 w-4" />
+              Diagnóstico
             </Button>
           )}
           <PrintOrderMenu orderId={o.id} />
@@ -144,9 +171,21 @@ export default function OrderDetailPage() {
               <Field label="Contraseña / PIN / Patrón" value={o.device_password} />
             )}
             <Field label="Problema" value={o.problem ?? '—'} />
+            {o.diagnosis && <Field label="Diagnóstico" value={o.diagnosis} />}
             {o.notes && <Field label="Notas" value={o.notes} />}
           </CardContent>
         </Card>
+
+        {o.kind === 'reparacion' && o.intake_checklist_applies !== null && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Checklist de ingreso</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <IntakeChecklistView order={o} />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -288,6 +327,13 @@ export default function OrderDetailPage() {
         folio={o.folio}
         balance={balance}
       />
+      {o.kind === 'reparacion' && (
+        <DiagnosisDialog
+          open={diagnosisOpen}
+          onOpenChange={setDiagnosisOpen}
+          order={o}
+        />
+      )}
     </div>
   );
 }
@@ -297,6 +343,65 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="whitespace-pre-wrap">{value}</p>
+    </div>
+  );
+}
+
+function IntakeChecklistView({ order }: { order: OrderWithCustomer }) {
+  const applies = order.intake_checklist_applies;
+  if (applies === false) {
+    const reason = order.intake_checklist_reason;
+    return (
+      <div className="space-y-2">
+        <p className="text-muted-foreground">
+          <span className="text-xs uppercase tracking-wide">No aplica · </span>
+          {reason ? INTAKE_CHECKLIST_REASON_LABELS[reason] : '—'}
+        </p>
+        {reason === 'otro' && order.intake_checklist_reason_other && (
+          <p className="whitespace-pre-wrap rounded bg-secondary px-3 py-2 text-xs">
+            {order.intake_checklist_reason_other}
+          </p>
+        )}
+      </div>
+    );
+  }
+  const c = order.intake_checklist;
+  if (!c) return <p className="text-muted-foreground">Sin datos.</p>;
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        <div className="flex justify-between gap-4 border-b border-border/40 py-1">
+          <span className="text-muted-foreground">Batería</span>
+          <span className="font-medium">
+            {c.bateria_porcentaje !== null ? `${c.bateria_porcentaje}%` : '—'}
+          </span>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-border/40 py-1">
+          <span className="text-muted-foreground">Trae funda</span>
+          <span className="font-medium">{c.trae_funda ? 'Sí' : 'No'}</span>
+        </div>
+        {INTAKE_CHECKLIST_ITEMS.map((item) => {
+          const status = c[item.key] as IntakeChecklistItemStatus;
+          return (
+            <div
+              key={item.key}
+              className="flex justify-between gap-4 border-b border-border/40 py-1"
+            >
+              <span className="text-muted-foreground">{item.label}</span>
+              <span
+                className={cn(
+                  'inline-flex items-center rounded px-2 text-xs font-semibold uppercase tracking-wide',
+                  status === 'ok' && 'bg-emerald-500/15 text-emerald-400',
+                  status === 'falla' && 'bg-destructive/15 text-destructive',
+                  status === 'nc' && 'bg-secondary text-muted-foreground',
+                )}
+              >
+                {INTAKE_CHECKLIST_STATUS_LABELS[status]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

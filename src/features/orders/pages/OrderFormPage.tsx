@@ -15,8 +15,10 @@ import {
   DEVICE_TYPE_LABELS,
   ORDER_STATUSES,
   STATUS_LABELS,
+  WARRANTY_VOIDING_REASONS,
   supportsDevicePassword,
 } from '../types';
+import IntakeChecklistFields from '../IntakeChecklistFields';
 import CustomerFormDialog from '@/features/customers/CustomerFormDialog';
 import CustomerCombobox from '@/components/customers/CustomerCombobox';
 import CatalogSuggestions from '@/features/catalog/CatalogSuggestions';
@@ -68,6 +70,12 @@ export default function OrderFormPage() {
       notes: '',
       status: 'pendiente',
       warranty_claim_of: null,
+      intake_checklist_applies: null,
+      intake_checklist_reason: null,
+      intake_checklist_reason_other: null,
+      intake_checklist: null,
+      warranty_void: false,
+      warranty_void_reason: null,
     },
   });
 
@@ -87,9 +95,37 @@ export default function OrderFormPage() {
         notes: existing.data.notes ?? '',
         status: existing.data.status,
         warranty_claim_of: existing.data.warranty_claim_of ?? null,
+        intake_checklist_applies: existing.data.intake_checklist_applies ?? null,
+        intake_checklist_reason: existing.data.intake_checklist_reason ?? null,
+        intake_checklist_reason_other: existing.data.intake_checklist_reason_other ?? null,
+        intake_checklist: existing.data.intake_checklist ?? null,
+        warranty_void: existing.data.warranty_void ?? false,
+        warranty_void_reason: existing.data.warranty_void_reason ?? null,
       });
     }
   }, [id, existing.data, reset]);
+
+  const intakeReason = watch('intake_checklist_reason');
+  const intakeApplies = watch('intake_checklist_applies');
+  const warrantyVoidReason = watch('warranty_void_reason');
+  useEffect(() => {
+    const shouldVoid =
+      intakeApplies === false &&
+      !!intakeReason &&
+      WARRANTY_VOIDING_REASONS.includes(intakeReason);
+    if (shouldVoid) {
+      setValue('warranty_void', true, { shouldDirty: true });
+      setValue('warranty_void_reason', intakeReason, { shouldDirty: true });
+    } else if (
+      // Solo auto-desmarcar lo que el effect mismo había marcado (mojado/sin_codigo).
+      // Respeta warranty_void manual (warranty_void_reason='manual' u otro valor custom).
+      warrantyVoidReason === 'mojado' ||
+      warrantyVoidReason === 'sin_codigo'
+    ) {
+      setValue('warranty_void', false, { shouldDirty: true });
+      setValue('warranty_void_reason', null, { shouldDirty: true });
+    }
+  }, [intakeApplies, intakeReason, warrantyVoidReason, setValue]);
 
   const selectedCustomerId = watch('customer_id');
   const cost = watch('cost');
@@ -276,6 +312,13 @@ export default function OrderFormPage() {
             </div>
           </CardContent>
         </Card>
+
+        <IntakeChecklistFields
+          register={register}
+          watch={watch}
+          setValue={setValue}
+          errors={errors}
+        />
 
         <CatalogSuggestions
           brand={watch('brand')}
