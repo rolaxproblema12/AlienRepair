@@ -69,6 +69,47 @@ export function useCustomerActiveOrders(customerId: string | undefined) {
   });
 }
 
+/**
+ * Lista las OS entregadas del cliente dentro del periodo de garantía
+ * de la sucursal. Usado por OrderFormPage para alertar cuando se crea
+ * una nueva OS y el cliente ya tiene una reciente — probable reclamo
+ * de garantía.
+ */
+export interface WarrantyEligibleOrder {
+  id: string;
+  folio: string;
+  delivered_at: string;
+  brand: string | null;
+  model: string | null;
+  problem: string | null;
+}
+
+export function useCustomerWarrantyOrders(
+  customerId: string | undefined,
+  warrantyDays: number,
+) {
+  const sucursalId = useScopedSucursalId();
+  return useQuery({
+    queryKey: ['customer-warranty-orders', sucursalId, customerId, warrantyDays],
+    enabled: !!customerId && warrantyDays > 0,
+    queryFn: async () => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - warrantyDays);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, folio, delivered_at, brand, model, problem')
+        .eq('sucursal_id', sucursalId)
+        .eq('customer_id', customerId!)
+        .eq('status', 'entregado')
+        .gte('delivered_at', cutoff.toISOString())
+        .order('delivered_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as WarrantyEligibleOrder[];
+    },
+  });
+}
+
 export function useSaveCustomer() {
   const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();

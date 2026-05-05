@@ -14,10 +14,16 @@
  * NO incluyas BEGIN;/COMMIT; explícitos en el cuerpo — el runner los envuelve.
  */
 
+import { config as loadEnv } from 'dotenv';
 import postgres from 'postgres';
 import { readdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
+
+// Cargar .env.local antes de leer SUPABASE_DB_URL (igual patrón que
+// playwright.config.ts). Sin esto el operador tiene que `export
+// SUPABASE_DB_URL=...` a mano cada sesión, lo cual es UX rota.
+loadEnv({ path: resolve(process.cwd(), '.env.local') });
 
 const MIGRATIONS_DIR = resolve(process.cwd(), 'supabase/migrations');
 
@@ -53,7 +59,27 @@ async function ensureUrl(): Promise<string> {
   return url;
 }
 
+/**
+ * Crea la tabla de control si no existe. Resuelve el chicken-and-egg
+ * de que la tabla la define la migración 0032 — sin este bootstrap, en
+ * una DB fresca el script tira "relation app._migrations does not exist"
+ * antes de poder aplicar 0032 misma. Idempotente; cuando 0032 corra,
+ * sus CREATE IF NOT EXISTS son no-op.
+ */
+async function ensureMigrationsTable(sql: postgres.Sql): Promise<void> {
+  await sql`create schema if not exists app`;
+  await sql`
+    create table if not exists app._migrations (
+      id text primary key,
+      hash text not null,
+      applied_at timestamptz not null default now(),
+      applied_by text not null default current_user
+    )
+  `;
+}
+
 async function fetchApplied(sql: postgres.Sql): Promise<Map<string, string>> {
+  await ensureMigrationsTable(sql);
   const rows = await sql<AppliedRow[]>`select id, hash, applied_at from app._migrations`;
   return new Map(rows.map((r) => [r.id, r.hash]));
 }
