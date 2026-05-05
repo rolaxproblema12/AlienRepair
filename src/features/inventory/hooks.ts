@@ -281,6 +281,7 @@ export function useProductMovements(productId: string | undefined) {
       return (data ?? []) as ProductMovement[];
     },
     enabled: !!productId,
+    staleTime: 60_000,
   });
 }
 

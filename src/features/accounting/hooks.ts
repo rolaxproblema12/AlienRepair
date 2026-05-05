@@ -122,6 +122,7 @@ export function useAccountingDaily(from: string, to: string) {
       if (error) throw error;
       return (data ?? []) as unknown as AccountingDailyRow[];
     },
+    staleTime: 5 * 60_000,
   });
 }
 

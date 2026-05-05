@@ -440,13 +440,16 @@ export function useOrderPayments(orderId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('order_payments')
-        .select('*')
+        .select(
+          'id, order_id, sale_id, sucursal_id, amount, payment_method, cash_session_id, notes, created_by, created_at',
+        )
         .eq('order_id', orderId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as OrderPayment[];
     },
     enabled: !!orderId,
+    staleTime: 30_000,
   });
 }
 
@@ -539,21 +542,26 @@ export function useOrdersWithBalance(search = '') {
       const { data, error } = await q;
       if (error) throw error;
 
-      // Cruzar con balance
+      // Cruzar con balance — filtramos balance > 0 server-side para no
+      // traer rows que vamos a descartar (vs antes: traíamos todas y
+      // filtrábamos en cliente).
       const ids = (data ?? []).map((o: { id: string }) => o.id);
       if (!ids.length) return [];
       const { data: balances, error: bErr } = await supabase
         .from('v_order_balance')
-        .select('*')
-        .in('order_id', ids);
+        .select('order_id, base_cost, parts_total, total, paid, balance')
+        .in('order_id', ids)
+        .gt('balance', 0);
       if (bErr) throw bErr;
       const balMap = new Map<string, OrderBalance>(
         (balances ?? []).map((b) => [b.order_id, b as OrderBalance]),
       );
 
+      // Solo devolvemos órdenes que aparecen en balMap (balance > 0).
       return (data ?? [])
+        .filter((o) => balMap.has(o.id))
         .map((o) => {
-          const bal = balMap.get(o.id);
+          const bal = balMap.get(o.id)!;
           return {
             ...(o as unknown as {
               id: string;
@@ -567,12 +575,11 @@ export function useOrdersWithBalance(search = '') {
               status: string;
               customer: { id: string; name: string; phone: string };
             }),
-            balance: bal?.balance ?? Number(o.cost) - Number(o.down_payment ?? 0),
-            paid: bal?.paid ?? Number(o.down_payment ?? 0),
-            total: bal?.total ?? Number(o.cost),
+            balance: bal.balance,
+            paid: bal.paid,
+            total: bal.total,
           };
-        })
-        .filter((o) => o.balance > 0);
+        });
     },
     staleTime: 30_000,
   });
@@ -660,14 +667,17 @@ export function useReturnSaleItem() {
       return data as SaleReturn;
     },
     onSuccess: (_data, vars) => {
+      // ['sale', sucursalId, id] — el queryKey real de useSale incluye
+      // sucursalId. Antes invalidábamos ['sale', sale_id] que no
+      // matcheaba nada (bug silencioso pre-Block B).
       qc.invalidateQueries({ queryKey: ['sale-returns', vars.sale_id] });
-      qc.invalidateQueries({ queryKey: ['sale', vars.sale_id] });
-      qc.invalidateQueries({ queryKey: ['sales'] });
+      qc.invalidateQueries({ queryKey: ['sale', sucursalId, vars.sale_id] });
+      qc.invalidateQueries({ queryKey: ['sales', sucursalId] });
       qc.invalidateQueries({ queryKey: ['day-balance'] });
-      qc.invalidateQueries({ queryKey: ['products'] });
+      qc.invalidateQueries({ queryKey: ['products', sucursalId] });
       if (vars.order_id) {
-        qc.invalidateQueries({ queryKey: ['order-balance'] });
-        qc.invalidateQueries({ queryKey: ['order-payments'] });
+        qc.invalidateQueries({ queryKey: ['order-balance', sucursalId, vars.order_id] });
+        qc.invalidateQueries({ queryKey: ['order-payments', sucursalId, vars.order_id] });
       }
     },
   });

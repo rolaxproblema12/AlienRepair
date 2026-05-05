@@ -109,6 +109,7 @@ export function useCustomerOrders(customerId: string | undefined) {
       return data as unknown as Order[];
     },
     enabled: !!customerId,
+    staleTime: 30_000,
   });
 }
 
@@ -118,9 +119,12 @@ export function useOverdueOrdersCount() {
     queryKey: ['orders-overdue-count', sucursalId],
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
+      // count:'estimated' (planner stats, exact si pocas rows). Evita
+      // el seq scan del 'exact'. El badge tolera ±1; con el partial
+      // index orders_sucursal_estimated_idx la diferencia es despreciable.
       const { count, error } = await supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'estimated', head: true })
         .eq('sucursal_id', sucursalId)
         .neq('status', 'listo')
         .neq('status', 'entregado')
@@ -206,19 +210,19 @@ export function useSaveRepairOrder() {
       if (vars.id && ctx?.previous) qc.setQueryData(['order', sucursalId, vars.id], ctx.previous);
     },
     onSettled: (data, _err, vars) => {
-      // Invalidaciones por prefijo: matchea cualquier sucursalId, así si el
-      // realtime nos notifica de cambios cross-sucursal (admin), se refresca.
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      qc.invalidateQueries({ queryKey: ['orders-agenda'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue-count'] });
+      // Invalidamos solo la sucursal activa: una mutation en A no debe
+      // forzar refetch de la cache de B (admin que opera 2 sucursales).
+      qc.invalidateQueries({ queryKey: ['orders', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-agenda', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
       if (data?.customer_id) {
-        qc.invalidateQueries({ queryKey: ['customer-orders'] });
-        qc.invalidateQueries({ queryKey: ['customer-active-orders'] });
+        qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId, data.customer_id] });
+        qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId, data.customer_id] });
       }
       if (vars.id) {
-        qc.invalidateQueries({ queryKey: ['order'] });
-        qc.invalidateQueries({ queryKey: ['order-balance'] });
+        qc.invalidateQueries({ queryKey: ['order', sucursalId, vars.id] });
+        qc.invalidateQueries({ queryKey: ['order-balance', sucursalId, vars.id] });
       }
     },
   });
@@ -291,17 +295,17 @@ export function useSaveItemOrder(kind: 'encargo' | 'accesorio') {
       if (vars.id && ctx?.previous) qc.setQueryData(['order', sucursalId, vars.id], ctx.previous);
     },
     onSettled: (data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      qc.invalidateQueries({ queryKey: ['orders-agenda'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue-count'] });
+      qc.invalidateQueries({ queryKey: ['orders', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-agenda', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
       if (data?.customer_id) {
-        qc.invalidateQueries({ queryKey: ['customer-orders'] });
-        qc.invalidateQueries({ queryKey: ['customer-active-orders'] });
+        qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId, data.customer_id] });
+        qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId, data.customer_id] });
       }
       if (vars.id) {
-        qc.invalidateQueries({ queryKey: ['order'] });
-        qc.invalidateQueries({ queryKey: ['order-balance'] });
+        qc.invalidateQueries({ queryKey: ['order', sucursalId, vars.id] });
+        qc.invalidateQueries({ queryKey: ['order-balance', sucursalId, vars.id] });
       }
     },
   });
@@ -345,6 +349,7 @@ export function useAgendaOrders() {
 }
 
 export function useDeleteOrder() {
+  const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -352,19 +357,20 @@ export function useDeleteOrder() {
       if (error) throw error;
       return id;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue-count'] });
-      qc.invalidateQueries({ queryKey: ['orders-agenda'] });
-      qc.invalidateQueries({ queryKey: ['customer-orders'] });
-      qc.invalidateQueries({ queryKey: ['customer-active-orders'] });
-      qc.invalidateQueries({ queryKey: ['order'] });
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ['orders', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-agenda', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId] });
+      qc.removeQueries({ queryKey: ['order', sucursalId, id] });
     },
   });
 }
 
 export function useUpdateOrderStatus() {
+  const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
@@ -379,21 +385,24 @@ export function useUpdateOrderStatus() {
       return data as unknown as OrderWithCustomer;
     },
     onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: ['orders'] });
-      const previous = qc.getQueriesData<OrderWithCustomer[]>({ queryKey: ['orders'] });
-      qc.setQueriesData<OrderWithCustomer[]>({ queryKey: ['orders'] }, (old) =>
-        old?.map((o) => (o.id === id ? { ...o, status } : o))
+      await qc.cancelQueries({ queryKey: ['orders', sucursalId] });
+      const previous = qc.getQueriesData<OrderWithCustomer[]>({
+        queryKey: ['orders', sucursalId],
+      });
+      qc.setQueriesData<OrderWithCustomer[]>(
+        { queryKey: ['orders', sucursalId] },
+        (old) => old?.map((o) => (o.id === id ? { ...o, status } : o)),
       );
       return { previous };
     },
     onError: (_err, _vars, ctx) => {
       ctx?.previous?.forEach(([key, data]) => qc.setQueryData(key, data));
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      qc.invalidateQueries({ queryKey: ['order'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue'] });
-      qc.invalidateQueries({ queryKey: ['orders-overdue-count'] });
+    onSettled: (_data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ['orders', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['order', sucursalId, vars.id] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
+      qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
     },
   });
 }

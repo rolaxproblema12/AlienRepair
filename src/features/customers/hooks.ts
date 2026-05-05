@@ -56,16 +56,21 @@ export function useCustomerActiveOrders(customerId: string | undefined) {
   return useQuery({
     queryKey: ['customer-active-orders', sucursalId, customerId],
     queryFn: async () => {
-      const { count, error } = await supabase
+      // No usamos count:'exact' (header extra + planner overhead). Pedimos
+      // hasta 50 IDs y devolvemos el length — un cliente nunca debería
+      // tener 50+ OS abiertas en simultáneo.
+      const { data, error } = await supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .eq('sucursal_id', sucursalId)
         .eq('customer_id', customerId!)
-        .neq('status', 'entregado');
+        .neq('status', 'entregado')
+        .limit(50);
       if (error) throw error;
-      return count ?? 0;
+      return (data ?? []).length;
     },
     enabled: !!customerId,
+    staleTime: 30_000,
   });
 }
 
