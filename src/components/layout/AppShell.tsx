@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
   { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
   { to: '/clientes', label: 'Clientes', icon: Users },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+  { to: '/reportes', label: 'Reportes', icon: BarChart3, adminOnly: true },
   { to: '/gastos', label: 'Gastos', icon: Receipt, adminOnly: true },
   { to: '/contabilidad', label: 'Contabilidad', icon: BarChart3, adminOnly: true },
 ];

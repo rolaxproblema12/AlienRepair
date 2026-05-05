@@ -44,6 +44,8 @@ import CatalogPage from '@/features/catalog/CatalogPage';
 import CatalogAdminPage from '@/features/catalog/CatalogAdminPage';
 import SucursalesAdminPage from '@/features/sucursales/SucursalesAdminPage';
 import ConfiguracionPage from '@/features/admin/ConfiguracionPage';
+import ReportsPage from '@/features/reports/ReportsPage';
+import PrintReportPage from '@/features/reports/PrintReportPage';
 import AppShell from '@/components/layout/AppShell';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import AdminRoute from '@/routes/AdminRoute';
@@ -103,6 +105,7 @@ export default function App() {
               <Route path="/print/order/:id" element={<PrintOrderPage />} />
               <Route path="/print/receipt/:id" element={<PrintReceiptPage />} />
               <Route path="/print/sale/:id" element={<PrintSalePage />} />
+              <Route path="/print/report/:id" element={<PrintReportPage />} />
 
               <Route element={<AppShell />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
@@ -144,6 +147,7 @@ export default function App() {
 
                 <Route path="/agenda" element={<AgendaPage />} />
                 <Route path="/retrasados" element={<OverduePage />} />
+                <Route path="/reportes" element={<ReportsPage />} />
 
                 <Route element={<AdminRoute />}>
                   <Route path="/gastos" element={<ExpensesPage />} />
