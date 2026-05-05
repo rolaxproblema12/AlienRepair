@@ -46,10 +46,21 @@ function csvEscape(s: string): string {
 
 export function downloadCsv(filename: string, content: string): void {
   const blob = new Blob([UTF8_BOM + content], { type: 'text/csv;charset=utf-8' });
+  triggerDownload(blob, filename.endsWith('.csv') ? filename : `${filename}.csv`);
+}
+
+export function downloadJson(filename: string, value: unknown): void {
+  const blob = new Blob([JSON.stringify(value, null, 2)], {
+    type: 'application/json;charset=utf-8',
+  });
+  triggerDownload(blob, filename.endsWith('.json') ? filename : `${filename}.json`);
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
