@@ -9,6 +9,7 @@ import type {
   SaleDetail,
   SaleItem,
   SalePaymentMethod,
+  SaleReturn,
   SaleWithCustomer,
 } from './types';
 import { calcLineTotal } from './types';
@@ -523,6 +524,78 @@ export function useOrdersWithBalance(search = '') {
         .filter((o) => o.balance > 0);
     },
     staleTime: 30_000,
+  });
+}
+
+// =====================================================
+// Devoluciones parciales (sale_returns)
+// =====================================================
+
+const SALE_RETURN_COLUMNS =
+  'id, sale_id, sale_item_id, quantity_returned, refund_amount, reason, cash_session_id, sucursal_id, created_by, created_at';
+
+export function useSaleReturns(saleId: string | undefined) {
+  return useQuery({
+    queryKey: ['sale-returns', saleId],
+    enabled: !!saleId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sale_returns')
+        .select(SALE_RETURN_COLUMNS)
+        .eq('sale_id', saleId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as SaleReturn[];
+    },
+  });
+}
+
+interface ReturnInput {
+  sale_id: string;
+  sale_item_id: string;
+  quantity_returned: number;
+  refund_amount: number;
+  reason: string | null;
+  /** Para invalidar order-payments si era abono. */
+  order_id?: string | null;
+}
+
+export function useReturnSaleItem() {
+  const sucursalId = useScopedSucursalId();
+  const session = useCurrentSession();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ReturnInput) => {
+      if (!session.data) {
+        throw new Error('No hay sesión de caja abierta. Abre caja para registrar devoluciones.');
+      }
+      const { data, error } = await supabase
+        .from('sale_returns')
+        .insert({
+          sale_id: input.sale_id,
+          sale_item_id: input.sale_item_id,
+          quantity_returned: input.quantity_returned,
+          refund_amount: input.refund_amount,
+          reason: input.reason,
+          cash_session_id: session.data.id,
+          sucursal_id: sucursalId,
+        })
+        .select(SALE_RETURN_COLUMNS)
+        .single();
+      if (error) throw error;
+      return data as SaleReturn;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['sale-returns', vars.sale_id] });
+      qc.invalidateQueries({ queryKey: ['sale', vars.sale_id] });
+      qc.invalidateQueries({ queryKey: ['sales'] });
+      qc.invalidateQueries({ queryKey: ['day-balance'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+      if (vars.order_id) {
+        qc.invalidateQueries({ queryKey: ['order-balance'] });
+        qc.invalidateQueries({ queryKey: ['order-payments'] });
+      }
+    },
   });
 }
 

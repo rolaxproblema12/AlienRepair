@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Ban, Printer } from 'lucide-react';
+import { ArrowLeft, Ban, Printer, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCancelSale, useSale } from './hooks';
+import { useCancelSale, useSale, useSaleReturns } from './hooks';
 import { PAYMENT_METHOD_ACCENT, PAYMENT_METHOD_LABELS } from './types';
+import type { SaleItem } from './types';
+import ReturnItemDialog from './ReturnItemDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,9 +37,11 @@ import { getErrorMessage } from '@/lib/errors';
 export default function SaleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const saleQ = useSale(id);
+  const returnsQ = useSaleReturns(id);
   const cancel = useCancelSale();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const [returnItem, setReturnItem] = useState<SaleItem | null>(null);
 
   if (saleQ.isLoading || !saleQ.data) {
     return (
@@ -51,6 +55,17 @@ export default function SaleDetailPage() {
 
   const s = saleQ.data;
   const isCancelled = s.status === 'cancelada';
+  const isPartialReturn = s.status === 'parcialmente_devuelta';
+  const returns = returnsQ.data ?? [];
+
+  // Cuánto fue devuelto por sale_item_id, para mostrar restante y bloquear botón.
+  const returnedByItem = new Map<string, number>();
+  for (const r of returns) {
+    returnedByItem.set(
+      r.sale_item_id,
+      (returnedByItem.get(r.sale_item_id) ?? 0) + Number(r.quantity_returned),
+    );
+  }
 
   async function handleCancel() {
     if (!reason.trim()) {
@@ -81,6 +96,11 @@ export default function SaleDetailPage() {
               <Badge variant="destructive" className="uppercase text-[10px]">
                 Cancelada
               </Badge>
+            )}
+            {isPartialReturn && (
+              <span className="inline-flex items-center rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+                Parcialmente devuelta
+              </span>
             )}
             <span
               className={cn(
@@ -144,39 +164,70 @@ export default function SaleDetailPage() {
                 <TableHead className="text-right">Cant.</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
                 <TableHead className="text-right">Desc.</TableHead>
-                <TableHead className="pr-6 text-right">Total</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="pr-6 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {s.items.map((it) => (
-                <TableRow key={it.id}>
-                  <TableCell className="pl-6">
-                    <span
-                      className={cn(
-                        'rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase',
-                        it.kind === 'producto'
-                          ? 'bg-secondary text-secondary-foreground'
-                          : 'bg-violet-500/15 text-violet-400',
+              {s.items.map((it) => {
+                const returnedQty = returnedByItem.get(it.id) ?? 0;
+                const fullyReturned = returnedQty >= Number(it.quantity);
+                const canReturn = !isCancelled && !fullyReturned;
+                return (
+                  <TableRow key={it.id}>
+                    <TableCell className="pl-6">
+                      <span
+                        className={cn(
+                          'rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase',
+                          it.kind === 'producto'
+                            ? 'bg-secondary text-secondary-foreground'
+                            : 'bg-violet-500/15 text-violet-400',
+                        )}
+                      >
+                        {it.kind === 'producto' ? 'Producto' : 'Abono'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {it.description}
+                      {returnedQty > 0 && (
+                        <span className="ml-2 text-[10px] text-amber-400">
+                          (devuelto: {returnedQty})
+                        </span>
                       )}
-                    >
-                      {it.kind === 'producto' ? 'Producto' : 'Abono'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm">{it.description}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {it.quantity}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {currency(it.unit_price)}
-                  </TableCell>
-                  <TableCell className="text-right text-sm text-muted-foreground">
-                    {it.discount > 0 ? `−${currency(it.discount)}` : '—'}
-                  </TableCell>
-                  <TableCell className="pr-6 text-right text-sm font-medium">
-                    {currency(it.line_total)}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {it.quantity}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {currency(it.unit_price)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {it.discount > 0 ? `−${currency(it.discount)}` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      {currency(it.line_total)}
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!canReturn}
+                        onClick={() => setReturnItem(it)}
+                        title={
+                          fullyReturned
+                            ? 'Línea totalmente devuelta'
+                            : isCancelled
+                              ? 'Venta cancelada'
+                              : 'Devolver esta línea'
+                        }
+                      >
+                        <Undo2 className="mr-1 h-3.5 w-3.5" />
+                        Devolver
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -209,6 +260,60 @@ export default function SaleDetailPage() {
           </Card>
         )}
       </div>
+
+      {returns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Devoluciones registradas</CardTitle>
+          </CardHeader>
+          <CardContent className="px-0 pb-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Fecha</TableHead>
+                  <TableHead>Línea</TableHead>
+                  <TableHead className="text-right">Cantidad</TableHead>
+                  <TableHead className="text-right">Reembolso</TableHead>
+                  <TableHead className="pr-6">Motivo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {returns.map((r) => {
+                  const item = s.items.find((it) => it.id === r.sale_item_id);
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="pl-6 text-xs text-muted-foreground">
+                        {formatDateTime(r.created_at)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {item?.description ?? '(línea borrada)'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {r.quantity_returned}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-medium">
+                        {currency(r.refund_amount)}
+                      </TableCell>
+                      <TableCell className="pr-6 text-xs text-muted-foreground">
+                        {r.reason ?? '—'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {returnItem && (
+        <ReturnItemDialog
+          open={!!returnItem}
+          onOpenChange={(v) => !v && setReturnItem(null)}
+          item={returnItem}
+          existingReturns={returns}
+        />
+      )}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>

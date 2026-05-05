@@ -1,5 +1,5 @@
 export type CashSessionStatus = 'open' | 'closed';
-export type SaleStatus = 'completada' | 'cancelada';
+export type SaleStatus = 'completada' | 'cancelada' | 'parcialmente_devuelta';
 export type SalePaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia';
 export type SaleItemKind = 'producto' | 'abono_orden';
 
@@ -57,6 +57,19 @@ export interface SaleItem {
 
 export interface SaleDetail extends SaleWithCustomer {
   items: SaleItem[];
+}
+
+export interface SaleReturn {
+  id: string;
+  sale_id: string;
+  sale_item_id: string;
+  quantity_returned: number;
+  refund_amount: number;
+  reason: string | null;
+  cash_session_id: string;
+  sucursal_id: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface OrderPayment {
