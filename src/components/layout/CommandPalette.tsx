@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart3,
+  Boxes,
   CalendarDays,
+  Cpu,
   LayoutDashboard,
   Package,
   Receipt,
@@ -10,6 +12,7 @@ import {
   ShoppingBag,
   UserPlus,
   Users,
+  Wallet,
   Wrench,
 } from 'lucide-react';
 import {
@@ -23,6 +26,10 @@ import {
 import { useCustomers } from '@/features/customers/hooks';
 import { useOrders } from '@/features/orders/hooks';
 import { KIND_LABELS } from '@/features/orders/types';
+import { useProducts } from '@/features/inventory/hooks';
+import { useParts } from '@/features/parts/hooks';
+import { useSales } from '@/features/cash/hooks';
+import { currency } from '@/lib/format';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useMaybeSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import { useDebouncedValue } from '@/lib/hooks';
@@ -52,8 +59,14 @@ function FullPalette({ open, onOpenChange }: Props) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 250);
 
-  const customers = useCustomers(debouncedQuery);
-  const orders = useOrders({ search: debouncedQuery });
+  // Búsqueda global: 5 dominios. Sólo dispara queries cuando hay query
+  // activa para no martillar Supabase con search='' en el primer mount.
+  const hasQuery = debouncedQuery.trim().length > 0;
+  const customers = useCustomers(hasQuery ? debouncedQuery : '');
+  const orders = useOrders({ search: hasQuery ? debouncedQuery : '' });
+  const products = useProducts({ search: hasQuery ? debouncedQuery : '' });
+  const parts = useParts({ search: hasQuery ? debouncedQuery : '' });
+  const sales = useSales({ search: hasQuery ? debouncedQuery : '' });
 
   // Reset al cerrar para que la próxima Ctrl+K abra con el input limpio.
   // setState-in-effect es intencional acá: el `open` lo controla el padre,
@@ -91,8 +104,13 @@ function FullPalette({ open, onOpenChange }: Props) {
     { label: 'Nuevo cliente', path: '/clientes' },
   ];
 
-  const matchedOrders = (orders.data ?? []).slice(0, 8);
-  const matchedCustomers = (customers.data ?? []).slice(0, 8);
+  // Limitamos cada sección a 6 para que la lista no se vuelva infinita
+  // y el cmdk siga siendo navegable con teclado.
+  const matchedOrders = (orders.data ?? []).slice(0, 6);
+  const matchedCustomers = (customers.data ?? []).slice(0, 6);
+  const matchedProducts = (products.data ?? []).slice(0, 6);
+  const matchedParts = (parts.data ?? []).slice(0, 6);
+  const matchedSales = (sales.data ?? []).slice(0, 6);
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
@@ -142,6 +160,69 @@ function FullPalette({ open, onOpenChange }: Props) {
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="flex-1 truncate">{c.name}</span>
                 <span className="text-xs text-muted-foreground">{c.phone}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {query && matchedProducts.length > 0 && (
+          <CommandGroup heading="Productos">
+            {matchedProducts.map((p) => (
+              <CommandItem
+                key={p.id}
+                value={`${p.name} ${p.sku ?? ''} ${p.barcode ?? ''}`}
+                onSelect={() => go(`/inventario/${p.id}`)}
+              >
+                <Boxes className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 truncate">{p.name}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {p.sku ?? '—'}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Stock: {p.stock}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {query && matchedParts.length > 0 && (
+          <CommandGroup heading="Piezas">
+            {matchedParts.map((p) => (
+              <CommandItem
+                key={p.id}
+                value={`${p.name} ${p.brand} ${p.model}`}
+                onSelect={() => go(`/piezas/${p.id}`)}
+              >
+                <Cpu className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 truncate">
+                  {p.name}
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    · {p.brand} {p.model}
+                  </span>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Stock: {p.stock}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {query && matchedSales.length > 0 && (
+          <CommandGroup heading="Ventas">
+            {matchedSales.map((s) => (
+              <CommandItem
+                key={s.id}
+                value={`VTA-${s.folio} ${s.customer?.name ?? ''}`}
+                onSelect={() => go(`/caja/${s.id}`)}
+              >
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className="font-mono text-xs">VTA-{s.folio}</span>
+                <span className="flex-1 truncate">
+                  {s.customer?.name ?? 'Cliente general'}
+                </span>
+                <span className="text-xs font-medium">{currency(s.total)}</span>
               </CommandItem>
             ))}
           </CommandGroup>
