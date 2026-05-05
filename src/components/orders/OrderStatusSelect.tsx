@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUpdateOrderStatus } from '@/features/orders/hooks';
+import { useUpdateOrderStatusWithNotify } from '@/features/orders/useUpdateOrderStatusWithNotify';
 import { getErrorMessage } from '@/lib/errors';
 import {
   ORDER_STATUSES,
@@ -24,15 +24,16 @@ interface Props {
 }
 
 export default function OrderStatusSelect({ orderId, status, kind, compact }: Props) {
-  const update = useUpdateOrderStatus();
+  const update = useUpdateOrderStatusWithNotify();
   const options = kind ? availableStatusesFor(kind) : ORDER_STATUSES;
   return (
     <Select
       value={status}
       onValueChange={async (v) => {
         try {
+          // El wrapper dispara el toast de "estatus actualizado a X" con
+          // acción WhatsApp si corresponde; no duplicamos otro success acá.
           await update.mutateAsync({ id: orderId, status: v as OrderStatus });
-          toast.success(`Estatus: ${STATUS_LABELS[v as OrderStatus]}`);
         } catch (err) {
           toast.error(getErrorMessage(err));
         }

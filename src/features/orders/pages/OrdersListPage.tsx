@@ -9,13 +9,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { useOrders, useUpdateOrderStatus } from '@/features/orders/hooks';
+import { useOrders } from '@/features/orders/hooks';
+import { useUpdateOrderStatusWithNotify } from '@/features/orders/useUpdateOrderStatusWithNotify';
 import { useDebouncedValue } from '@/lib/hooks';
 import { isOverdue } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import {
   ORDER_STATUSES,
-  STATUS_LABELS,
   type OrderStatus,
   type OrderWithCustomer,
 } from '@/features/orders/types';
@@ -41,7 +41,7 @@ export default function OrdersListPage() {
     search: debouncedSearch,
   });
 
-  const updateStatus = useUpdateOrderStatus();
+  const updateStatus = useUpdateOrderStatusWithNotify();
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -76,8 +76,8 @@ export default function OrdersListPage() {
     const fromStatus = e.active.data.current?.status as OrderStatus | undefined;
     if (!newStatus || newStatus === fromStatus) return;
     try {
+      // El wrapper toastea "Estatus actualizado…" + acción WhatsApp.
       await updateStatus.mutateAsync({ id: orderId, status: newStatus });
-      toast.success(`Movido a ${STATUS_LABELS[newStatus]}`);
     } catch (err) {
       toast.error(getErrorMessage(err));
     }

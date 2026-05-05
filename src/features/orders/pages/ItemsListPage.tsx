@@ -18,19 +18,15 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import {
-  useDeleteOrder,
-  useOrders,
-  useUpdateOrderStatus,
-} from '@/features/orders/hooks';
+import { useDeleteOrder, useOrders } from '@/features/orders/hooks';
+import { useUpdateOrderStatusWithNotify } from '@/features/orders/useUpdateOrderStatusWithNotify';
 import { useDebouncedValue } from '@/lib/hooks';
 import { isOverdue } from '@/lib/dates';
 import { cn } from '@/lib/utils';
-import {
-  STATUS_LABELS,
-  type OrderKind,
-  type OrderStatus,
-  type OrderWithCustomer,
+import type {
+  OrderKind,
+  OrderStatus,
+  OrderWithCustomer,
 } from '@/features/orders/types';
 import OrderKanbanColumn from '@/components/orders/OrderKanbanColumn';
 import { Button } from '@/components/ui/button';
@@ -98,7 +94,7 @@ export default function ItemsListPage({ kind }: Props) {
     search: debouncedSearch,
   });
 
-  const updateStatus = useUpdateOrderStatus();
+  const updateStatus = useUpdateOrderStatusWithNotify();
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -134,8 +130,8 @@ export default function ItemsListPage({ kind }: Props) {
     if (!newStatus || newStatus === fromStatus) return;
     if (!ITEM_KANBAN_STATUSES.includes(newStatus)) return;
     try {
+      // El wrapper toastea "Estatus actualizado…" + acción WhatsApp.
       await updateStatus.mutateAsync({ id: orderId, status: newStatus });
-      toast.success(`Movido a ${STATUS_LABELS[newStatus]}`);
     } catch (err) {
       toast.error(getErrorMessage(err));
     }
