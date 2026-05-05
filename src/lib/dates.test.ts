@@ -21,10 +21,23 @@ describe('formatDate', () => {
   it('returns em-dash for null', () => {
     expect(formatDate(null)).toBe('—');
     expect(formatDate(undefined)).toBe('—');
+    expect(formatDate('')).toBe('—');
   });
 
   it('formats ISO string in es-MX with Mexico City TZ', () => {
     expect(formatDate('2026-05-03T18:00:00Z')).toMatch(/3 de mayo 2026/);
+  });
+
+  it('preserves the day for DATE-only strings (no UTC shift)', () => {
+    // Regression: `new Date("2026-05-07")` se interpretaba como UTC midnight y
+    // formatInTimeZone con America/Mexico_City lo desplazaba al día anterior.
+    expect(formatDate('2026-05-07')).toBe('7 de mayo 2026');
+    expect(formatDate('2026-01-01')).toBe('1 de enero 2026');
+    expect(formatDate('2026-12-31')).toBe('31 de diciembre 2026');
+  });
+
+  it('formatDateTime con DATE-only no inventa hora 00:00', () => {
+    expect(formatDateTime('2026-05-07')).toBe('7 de mayo 2026');
   });
 });
 
@@ -45,6 +58,10 @@ describe('formatShortDate', () => {
 
   it('returns em-dash for null', () => {
     expect(formatShortDate(null)).toBe('—');
+  });
+
+  it('preserves day for DATE-only strings', () => {
+    expect(formatShortDate('2026-05-07')).toBe('07/05/2026');
   });
 });
 
