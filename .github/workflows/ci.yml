@@ -36,6 +36,13 @@ jobs:
 
       - name: Tests
         run: npm run test:run
+        env:
+          # Dummies para que `createClient` no aborte. Los tests mockean
+          # supabase per-archivo, pero la inicialización del cliente en
+          # src/lib/supabase.ts corre al import (top-level) y necesita
+          # url+key válidos sintácticamente.
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_ANON_KEY: test-anon-key-dummy
 
       - name: Build
         run: npm run build
