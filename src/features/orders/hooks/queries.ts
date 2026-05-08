@@ -238,5 +238,6 @@ export function useWarrantyOrders(filter: WarrantyFilter = {}) {
       if (error) throw error;
       return sanitizeOrderRows((data ?? []) as unknown as WarrantyOrder[]);
     },
+    staleTime: STALE_TIMES.MEDIUM,
   });
 }

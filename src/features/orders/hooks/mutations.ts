@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { log } from '@/lib/logger';
 import {
   invalidateOrderRelated,
   removeOrderRelated,
@@ -245,34 +246,56 @@ export function useUpdateOrderStatus() {
       // registrado vía OrderPaymentDialog antes (en cuyo caso el saldo
       // acá ya es 0 y no se crea pago auto).
       if (status === 'entregado') {
-        const { data: balanceRow } = await supabase
-          .from('v_order_balance')
-          .select('balance')
+        // Idempotencia: si ya existe un pago marcado como auto-cobro para
+        // esta OS, no creamos otro. Cubre el caso de doble-click o de marcar
+        // entregado dos veces seguidas. NO previene la race condition pura
+        // de dos tabs simultáneas (necesitaría un advisory lock SQL), pero
+        // sí cubre el escenario realista del taller (operador haciendo
+        // doble click por costumbre).
+        const { data: existing } = await supabase
+          .from('order_payments')
+          .select('id')
           .eq('order_id', id)
-          .maybeSingle();
-        const balance = Number(balanceRow?.balance ?? 0);
-        if (balance > 0.01) {
-          // Vincular a la sesión abierta de ESTA sucursal si existe.
-          // Si no hay sesión, queda con cash_session_id=null — el
-          // accounting daily lo cuenta igual via v_accounting_daily.
-          const { data: session } = await supabase
-            .from('cash_sessions')
-            .select('id')
-            .eq('sucursal_id', sucursalId)
-            .eq('status', 'open')
+          .eq('notes', 'Cobro automático al entregar')
+          .limit(1);
+        const alreadyAuto = (existing ?? []).length > 0;
+
+        if (!alreadyAuto) {
+          const { data: balanceRow } = await supabase
+            .from('v_order_balance')
+            .select('balance')
+            .eq('order_id', id)
             .maybeSingle();
-          const { error: payErr } = await supabase
-            .from('order_payments')
-            .insert({
-              sucursal_id: sucursalId,
-              order_id: id,
-              cash_session_id: session?.id ?? null,
-              amount: Number(balance.toFixed(2)),
-              payment_method: 'efectivo',
-              notes: 'Cobro automático al entregar',
-              created_by: userId,
-            });
-          if (payErr) throw payErr;
+          const balance = Number(balanceRow?.balance ?? 0);
+          if (balance > 0.01) {
+            // Vincular a la sesión abierta de ESTA sucursal si existe.
+            // Si no hay sesión, queda con cash_session_id=null — el
+            // accounting daily lo cuenta igual via v_accounting_daily.
+            const { data: session } = await supabase
+              .from('cash_sessions')
+              .select('id')
+              .eq('sucursal_id', sucursalId)
+              .eq('status', 'open')
+              .maybeSingle();
+            const { error: payErr } = await supabase
+              .from('order_payments')
+              .insert({
+                sucursal_id: sucursalId,
+                order_id: id,
+                cash_session_id: session?.id ?? null,
+                amount: Number(balance.toFixed(2)),
+                payment_method: 'efectivo',
+                notes: 'Cobro automático al entregar',
+                created_by: userId,
+              });
+            if (payErr) {
+              log.error('orders', 'Auto-cobro al entregar falló', payErr, {
+                orderId: id,
+                amount: balance,
+              });
+              throw payErr;
+            }
+          }
         }
       }
 

@@ -184,12 +184,18 @@ function NewWarrantyDialog({ open, onOpenChange }: NewWarrantyDialogProps) {
     onOpenChange(next);
   }
 
-  function handlePick(orderId: string, brand: string | null, model: string | null) {
+  function handlePick(
+    orderId: string,
+    brand: string | null,
+    model: string | null,
+    deviceType: string | null,
+  ) {
     const params = new URLSearchParams();
     if (customerId) params.set('cliente', customerId);
     params.set('warranty', orderId);
     if (brand) params.set('brand', brand);
     if (model) params.set('model', model);
+    if (deviceType) params.set('device', deviceType);
     onOpenChange(false);
     setCustomerId(null);
     navigate(`/reparaciones/nueva?${params.toString()}`);
@@ -212,7 +218,15 @@ function NewWarrantyDialog({ open, onOpenChange }: NewWarrantyDialogProps) {
             <CustomerCombobox value={customerId} onChange={setCustomerId} />
           </div>
 
-          {customerId && (
+          {customerId && warrantyDays === 0 && (
+            <p className="rounded-md border border-dashed border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm text-amber-200">
+              Esta sucursal no tiene período de garantía configurado. Configurá{' '}
+              <code className="rounded bg-muted px-1 text-xs">warranty_days</code> en
+              Configuración → Datos del shop antes de cubrir garantías.
+            </p>
+          )}
+
+          {customerId && warrantyDays > 0 && (
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">
                 Reparaciones entregadas elegibles (últimos {warrantyDays} días)
@@ -230,7 +244,7 @@ function NewWarrantyDialog({ open, onOpenChange }: NewWarrantyDialogProps) {
                     <li key={o.id}>
                       <button
                         type="button"
-                        onClick={() => handlePick(o.id, o.brand, o.model)}
+                        onClick={() => handlePick(o.id, o.brand, o.model, o.device_type)}
                         className={cn(
                           'flex w-full items-start gap-3 rounded-md border border-border bg-card p-3 text-left transition',
                           'hover:border-primary/40 hover:bg-secondary',

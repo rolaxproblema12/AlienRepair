@@ -66,6 +66,16 @@ export function invalidateOrderRelated(
     qc.invalidateQueries({
       queryKey: ['customer-active-orders', sucursalId, opts.customerId],
     });
+    qc.invalidateQueries({
+      queryKey: ['customer-warranty-orders', sucursalId, opts.customerId],
+    });
+  } else {
+    // Sin customerId conocido: invalidar warranty-orders a nivel sucursal
+    // para que el dialog "Nueva garantía" no muestre lista stale después
+    // de que una OS pase a entregado/reabra.
+    qc.invalidateQueries({
+      queryKey: ['customer-warranty-orders', sucursalId],
+    });
   }
 
   if (opts.accountingAffected) {

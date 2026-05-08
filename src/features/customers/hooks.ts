@@ -86,6 +86,7 @@ export interface WarrantyEligibleOrder {
   id: string;
   folio: string;
   delivered_at: string;
+  device_type: string | null;
   brand: string | null;
   model: string | null;
   problem: string | null;
@@ -104,7 +105,7 @@ export function useCustomerWarrantyOrders(
       cutoff.setDate(cutoff.getDate() - warrantyDays);
       const { data, error } = await supabase
         .from('orders')
-        .select('id, folio, delivered_at, brand, model, problem')
+        .select('id, folio, delivered_at, device_type, brand, model, problem')
         .eq('sucursal_id', sucursalId)
         .eq('customer_id', customerId!)
         .eq('status', 'entregado')

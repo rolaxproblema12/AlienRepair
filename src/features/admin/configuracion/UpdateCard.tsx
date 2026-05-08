@@ -17,7 +17,8 @@ export function UpdateCard() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const off = window.alien?.updater?.onStatus((s: UpdaterStatus) => {
+    if (!window.alien?.updater) return;
+    const off = window.alien.updater.onStatus((s: UpdaterStatus) => {
       setStatus(s);
       // Limpiar busy cuando llega cualquier estado terminal del check.
       if (
