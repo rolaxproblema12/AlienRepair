@@ -64,7 +64,11 @@ Admin-only routes additionally wrap in `AdminRoute` and rely on the `is_admin()`
 - **RLS**: every table is RLS-enabled. Patrón actual:
   - Tablas con sucursal_id usan `is_active_user_in_sucursal(sucursal_id)` (combinación de active + asignación o admin).
   - Tablas globales (profiles, access_codes, app_settings, sucursales, user_sucursales) siguen con sus policies específicas — `is_admin()` para escribir, lectura propia/admin.
-  Nuevas tablas/policies van en un archivo numerado bajo `supabase/migrations/`. Migraciones se aplican con `npm run db:migrate` (necesita `SUPABASE_DB_URL` en `.env.local` — connection string Postgres directa, no anon key). El runner (`scripts/migrate.ts`) ejecuta cada archivo dentro de una transacción y registra `id + hash + applied_at` en `app._migrations`; reaplicar un archivo modificado tira con error de hash. `npm run db:status` lista pendientes vs aplicadas. Las cinco migraciones de multi-sucursal son `0026_sucursales.sql`, `0027_sucursal_columns.sql`, `0028_folio_per_sucursal.sql`, `0029_sucursal_rls.sql`, `0030_sucursal_views_triggers.sql` (aplicar en orden).
+  Nuevas tablas/policies van en un archivo numerado bajo `supabase/migrations/`.
+
+  **IMPORTANTE: la DB está en producción.** Las migraciones se aplican **manualmente desde Supabase Dashboard → SQL Editor** por el admin del shop, NUNCA desde CI, workflows, auto-updater, ni el binario instalado. El comando `npm run db:migrate` existe pero está reservado para uso manual del admin (y el `app._migrations` puede estar desincronizado porque la mayoría de cambios se aplican desde el SQL Editor). `npm run db:status` lista pendientes/aplicadas según el registro local. `npm run db:tables` lista tablas + vistas con conteo de filas (read-only). NO agregar `db:migrate` a ningún workflow ni script automático — el schema de DB y la versión del app se actualizan en pasos separados y coordinados.
+
+  Las cinco migraciones de multi-sucursal son `0026_sucursales.sql`, `0027_sucursal_columns.sql`, `0028_folio_per_sucursal.sql`, `0029_sucursal_rls.sql`, `0030_sucursal_views_triggers.sql` (aplicar en orden).
 
 ## Domain structure
 
