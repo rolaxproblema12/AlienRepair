@@ -23,6 +23,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:status": "tsx scripts/migrate.ts --status",
     "db:mark-applied": "tsx scripts/migrate.ts --mark-applied",
+    "db:tables": "tsx scripts/list-tables.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "dist": "electron-vite build && electron-builder",
