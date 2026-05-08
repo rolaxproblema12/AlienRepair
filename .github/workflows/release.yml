@@ -8,7 +8,9 @@ on:
 jobs:
   release:
     name: Build, sign, publish, upload sourcemaps
-    runs-on: windows-latest
+    # Fijado a windows-2022 porque windows-latest se está moviendo a
+    # windows-2025-vs2026 (mayo 2026) y rompe el toolchain de electron-builder.
+    runs-on: windows-2022
     permissions:
       contents: write
     steps:
