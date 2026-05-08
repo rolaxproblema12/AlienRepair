@@ -232,9 +232,53 @@ export function useUpdateOrderStatus() {
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
       const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id ?? null;
+
+      // Auto-cobro al entregar: si la OS pasa a 'entregado' y aún hay
+      // saldo pendiente, registramos automáticamente un order_payment
+      // por la diferencia con método 'efectivo'. Esto cierra el flujo
+      // típico del taller donde "marcar entregado" implica que el cliente
+      // pagó al recoger. Se hace ANTES del UPDATE para que cualquier
+      // observador del trigger de delivered_at vea balance=0.
+      //
+      // Si el operador cobró con tarjeta/transferencia, debió haberlo
+      // registrado vía OrderPaymentDialog antes (en cuyo caso el saldo
+      // acá ya es 0 y no se crea pago auto).
+      if (status === 'entregado') {
+        const { data: balanceRow } = await supabase
+          .from('v_order_balance')
+          .select('balance')
+          .eq('order_id', id)
+          .maybeSingle();
+        const balance = Number(balanceRow?.balance ?? 0);
+        if (balance > 0.01) {
+          // Vincular a la sesión abierta de ESTA sucursal si existe.
+          // Si no hay sesión, queda con cash_session_id=null — el
+          // accounting daily lo cuenta igual via v_accounting_daily.
+          const { data: session } = await supabase
+            .from('cash_sessions')
+            .select('id')
+            .eq('sucursal_id', sucursalId)
+            .eq('status', 'open')
+            .maybeSingle();
+          const { error: payErr } = await supabase
+            .from('order_payments')
+            .insert({
+              sucursal_id: sucursalId,
+              order_id: id,
+              cash_session_id: session?.id ?? null,
+              amount: Number(balance.toFixed(2)),
+              payment_method: 'efectivo',
+              notes: 'Cobro automático al entregar',
+              created_by: userId,
+            });
+          if (payErr) throw payErr;
+        }
+      }
+
       const { data, error } = await supabase
         .from('orders')
-        .update({ status, updated_by: auth.user?.id })
+        .update({ status, updated_by: userId })
         .eq('id', id)
         .select(LIST_COLUMNS)
         .single();

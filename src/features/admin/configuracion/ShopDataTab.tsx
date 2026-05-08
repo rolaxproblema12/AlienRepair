@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getErrorMessage } from '@/lib/errors';
 import { Field } from './Field';
 import { BackupCard } from './BackupCard';
+import { UpdateCard } from './UpdateCard';
 
 export function ShopDataTab({ sucursalId }: { sucursalId: string }) {
   const configQ = useSucursalConfig(sucursalId);
@@ -169,6 +170,7 @@ export function ShopDataTab({ sucursalId }: { sucursalId: string }) {
       </div>
 
       <BackupCard sucursalId={sucursalId} />
+      <UpdateCard />
     </form>
   );
 }

@@ -12,10 +12,10 @@ import { useOverdueLoginToast } from '@/features/orders/useOverdueLoginToast';
 import CommandPalette from './CommandPalette';
 import SucursalSelector from './SucursalSelector';
 import UpdateBanner from '@/components/UpdateBanner';
-import UpdateCheckButton from '@/components/UpdateCheckButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import {
   LayoutDashboard,
+  BadgeCheck,
   Wrench,
   Users,
   Package,
@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/caja', label: 'Caja', icon: Wallet },
   { to: '/reparaciones', label: 'Reparaciones', icon: Wrench },
+  { to: '/garantias', label: 'Garantías', icon: BadgeCheck },
   { to: '/encargos', label: 'Encargos', icon: Package },
   { to: '/accesorios', label: 'Accesorios', icon: ShoppingBag },
   { to: '/inventario', label: 'Inventario', icon: Boxes },
@@ -169,7 +170,6 @@ export default function AppShell() {
         <div className="flex h-12 shrink-0 items-center justify-end gap-2 border-b border-border px-4">
           <SucursalSelector />
           <ThemeToggle />
-          <UpdateCheckButton />
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}

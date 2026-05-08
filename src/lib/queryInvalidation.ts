@@ -50,6 +50,7 @@ export function invalidateOrderRelated(
   qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
   qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
   qc.invalidateQueries({ queryKey: ['orders-with-balance', sucursalId] });
+  qc.invalidateQueries({ queryKey: ['warranty-orders', sucursalId] });
 
   if (opts.orderId) {
     qc.invalidateQueries({ queryKey: ['order', sucursalId, opts.orderId] });

@@ -4,6 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [1.6.6] — 2026-05-08
+
+### Added
+- **Módulo de Garantías** (`/garantias`): listado dedicado de OS que son reclamos de garantía (`warranty_claim_of != null`) con filtros (todas/activas/entregadas) y búsqueda. Botón "Nueva garantía" abre wizard: cliente → OS entregada elegible → form pre-poblado con `cost=0`, marca/modelo copiados y banner amber con link a la OS original.
+- **Card "Actualizaciones"** en Configuración → Datos del shop: muestra versión actual, estado del updater y botón "Buscar actualizaciones" + "Reiniciar e instalar" cuando hay descarga lista.
+
+### Changed
+- **Auto-cobro al entregar**: cuando una OS pasa a status `'entregado'` y aún tiene saldo > 0, se registra automáticamente un `order_payment` por el saldo restante con método `'efectivo'` (vinculado a la sesión de caja abierta si existe). Cierra el flujo típico del taller donde "marcar entregado" implica que el cliente pagó al recoger. Si el cobro real fue con tarjeta/transferencia, debe registrarse antes vía `OrderPaymentDialog`.
+- **Botón "Buscar actualizaciones"** removido de la barra superior. El `<UpdateBanner />` global sigue arriba para feedback ambient cuando hay update disponible.
+
 ## [1.6.4] — 2026-05-08
 
 ### Added

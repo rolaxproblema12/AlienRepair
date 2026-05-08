@@ -15,6 +15,7 @@ import CustomerDetailPage from '@/features/customers/CustomerDetailPage';
 import OrdersListPage from '@/features/orders/pages/OrdersListPage';
 import OrderFormPage from '@/features/orders/pages/OrderFormPage';
 import OrderDetailPage from '@/features/orders/pages/OrderDetailPage';
+import WarrantiesPage from '@/features/orders/pages/WarrantiesPage';
 import ItemsListPage from '@/features/orders/pages/ItemsListPage';
 import ItemOrderFormPage from '@/features/orders/pages/ItemOrderFormPage';
 import ItemDetailPage from '@/features/orders/pages/ItemDetailPage';
@@ -121,6 +122,8 @@ export default function App() {
                 <Route path="/reparaciones/nueva" element={<OrderFormPage />} />
                 <Route path="/reparaciones/:id" element={<OrderDetailPage />} />
                 <Route path="/reparaciones/:id/editar" element={<OrderFormPage />} />
+
+                <Route path="/garantias" element={<WarrantiesPage />} />
 
                 <Route path="/encargos" element={<ItemsListPage kind="encargo" />} />
                 <Route path="/encargos/nuevo" element={<ItemOrderFormPage kind="encargo" />} />

@@ -190,3 +190,53 @@ export function useAgendaOrders() {
     },
   });
 }
+
+interface WarrantyFilter {
+  search?: string;
+  status?: 'all' | 'activas' | 'entregadas';
+}
+
+export interface WarrantyOrder extends OrderWithCustomer {
+  original: { id: string; folio: string } | null;
+}
+
+/**
+ * Listado de OS que son reclamos de garantía (warranty_claim_of != null).
+ * Incluye un join opcional a la OS original para mostrar el folio padre.
+ */
+export function useWarrantyOrders(filter: WarrantyFilter = {}) {
+  const sucursalId = useScopedSucursalId();
+  return useQuery({
+    queryKey: ['warranty-orders', sucursalId, filter],
+    queryFn: async () => {
+      let q = supabase
+        .from('orders')
+        .select(
+          `${LIST_COLUMNS}, original:orders!warranty_claim_of(id, folio)`,
+        )
+        .eq('sucursal_id', sucursalId)
+        .not('warranty_claim_of', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (filter.status === 'activas') {
+        q = q.neq('status', 'entregado');
+      } else if (filter.status === 'entregadas') {
+        q = q.eq('status', 'entregado');
+      }
+
+      const term = filter.search?.trim() ?? '';
+      if (term) {
+        const safe = term.replace(/[,()]/g, ' ');
+        const like = `%${safe}%`;
+        q = q.or(
+          `folio.ilike.${like},brand.ilike.${like},model.ilike.${like}`,
+        );
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return sanitizeOrderRows((data ?? []) as unknown as WarrantyOrder[]);
+    },
+  });
+}

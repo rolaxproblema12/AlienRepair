@@ -43,8 +43,16 @@ export default function OrderFormPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const presetCustomer = searchParams.get('cliente');
+  // Query params para el flujo de "Nueva garantía" desde /garantias.
+  // El form arranca pre-poblado: cost=0, warranty_claim_of=<id>, y datos
+  // del equipo (brand/model/device) copiados de la OS original.
+  const presetWarranty = searchParams.get('warranty');
+  const presetBrand = searchParams.get('brand');
+  const presetModel = searchParams.get('model');
+  const presetDevice = searchParams.get('device');
   const navigate = useNavigate();
   const existing = useOrder(id);
+  const warrantyOriginal = useOrder(presetWarranty ?? undefined);
   const save = useSaveRepairOrder();
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
 
@@ -60,9 +68,9 @@ export default function OrderFormPage() {
     resolver: zodResolver(repairOrderSchema),
     defaultValues: {
       customer_id: presetCustomer ?? '',
-      device_type: 'celular',
-      brand: '',
-      model: '',
+      device_type: (presetDevice as RepairOrderInput['device_type']) || 'celular',
+      brand: presetBrand ?? '',
+      model: presetModel ?? '',
       color: '',
       device_password: '',
       problem: '',
@@ -71,7 +79,7 @@ export default function OrderFormPage() {
       estimated_delivery: '',
       notes: '',
       status: 'pendiente',
-      warranty_claim_of: null,
+      warranty_claim_of: presetWarranty ?? null,
       intake_checklist_applies: null,
       intake_checklist_reason: null,
       intake_checklist_reason_other: null,
@@ -190,6 +198,27 @@ export default function OrderFormPage() {
       <h1 className="text-3xl font-semibold tracking-tight">
         {isNew ? 'Nueva orden de reparación' : `Editar orden #${existing.data?.folio ?? ''}`}
       </h1>
+
+      {presetWarranty && warrantyOriginal.data && (
+        <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <span aria-hidden className="text-base">🛡️</span>
+          <div className="space-y-1">
+            <p className="font-medium text-amber-200">
+              Garantía de OS{' '}
+              <Link
+                to={`/reparaciones/${warrantyOriginal.data.id}`}
+                className="font-mono underline-offset-2 hover:underline"
+              >
+                #{warrantyOriginal.data.folio}
+              </Link>
+            </p>
+            <p className="text-xs text-amber-100/90">
+              Costo por defecto $0. Editalo si la garantía implica un cargo extra
+              (refacciones, mano de obra adicional, etc.).
+            </p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-6">
         <Card>
