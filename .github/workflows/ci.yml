@@ -35,5 +35,9 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_CI }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_CI }}
+          # Mismos secrets que el workflow de release. Si no están
+          # configurados, el build igual compila — supabase.ts solo
+          # emite `console.warn` y la app levanta sin conexión real
+          # (CI no la ejecuta, solo verifica que compile).
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

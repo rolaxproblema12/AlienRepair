@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
 import { DEFAULT_MARKUP_MULTIPLIER, type CatalogProduct } from './types';
 
 const CATALOG_QUERY_KEY = ['catalog'] as const;
@@ -27,7 +28,7 @@ export function useCatalog() {
       return ((bundled as { default?: CatalogProduct[] }).default ??
         (bundled as unknown as CatalogProduct[])) as CatalogProduct[];
     },
-    staleTime: 60 * 60 * 1000,
+    staleTime: STALE_TIMES.VERY_SLOW,
     gcTime: 24 * 60 * 60 * 1000,
   });
 }
@@ -84,7 +85,7 @@ export function useMarkupSetting() {
       const parsed = data?.value ? Number(data.value) : DEFAULT_MARKUP_MULTIPLIER;
       return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MARKUP_MULTIPLIER;
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }
 

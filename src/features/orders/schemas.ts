@@ -139,6 +139,20 @@ export const repairOrderSchema = z
   );
 
 export type RepairOrderInput = z.infer<typeof repairOrderSchema>;
+export type IntakeChecklistDataParsed = z.infer<typeof intakeChecklistDataSchema>;
+
+/**
+ * Lectura defensiva del JSONB `intake_checklist`. Devuelve la data tipada si
+ * el JSON encaja con el schema, o null si está vacío/corrupto/malformado.
+ * Útil para tolerar rows escritas por versiones viejas o data manipulada.
+ */
+export function sanitizeIntakeChecklist(
+  raw: unknown,
+): IntakeChecklistDataParsed | null {
+  if (raw == null) return null;
+  const result = intakeChecklistDataSchema.safeParse(raw);
+  return result.success ? result.data : null;
+}
 
 export const diagnosisSchema = z.object({
   diagnosis: z.string().trim().min(3, 'Describe el diagnóstico'),

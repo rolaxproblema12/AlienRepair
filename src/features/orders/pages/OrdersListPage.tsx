@@ -20,7 +20,7 @@ import {
   type OrderWithCustomer,
 } from '@/features/orders/types';
 import OrderKanbanColumn from '@/components/orders/OrderKanbanColumn';
-import NewDiagnosisDialog from '@/features/orders/NewDiagnosisDialog';
+import DiagnosisDialog from '@/features/orders/DiagnosisDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +29,12 @@ import { getErrorMessage } from '@/lib/errors';
 type View = 'all' | 'overdue';
 
 const COLUMN_LIMIT = 10;
+
+// Layout responsivo del kanban. Mantenido como constante exportada para que
+// el test de regresión visual valide los breakpoints sin parsear el JSX.
+// Móvil 1 col → tablet 2 → laptop 3 → desktop 6 (una por status).
+export const KANBAN_GRID_CLASSES =
+  'grid auto-rows-min items-start gap-4 px-8 py-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6';
 
 export default function OrdersListPage() {
   const [search, setSearch] = useState('');
@@ -120,10 +126,10 @@ export default function OrdersListPage() {
         </div>
       </div>
 
-      <NewDiagnosisDialog open={diagnosisOpen} onOpenChange={setDiagnosisOpen} />
+      <DiagnosisDialog open={diagnosisOpen} onOpenChange={setDiagnosisOpen} />
 
       {isLoading ? (
-        <div className="grid auto-rows-min items-start gap-4 px-8 py-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className={KANBAN_GRID_CLASSES}>
           {ORDER_STATUSES.map((s) => (
             <div key={s} className="space-y-2">
               <Skeleton className="h-6 w-32" />
@@ -139,7 +145,7 @@ export default function OrdersListPage() {
         </div>
       ) : (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="grid auto-rows-min items-start gap-4 px-8 py-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className={KANBAN_GRID_CLASSES}>
             {ORDER_STATUSES.map((status) => (
               <OrderKanbanColumn
                 key={status}
@@ -166,11 +172,17 @@ function ViewTabs({ value, onChange }: ViewTabsProps) {
     { key: 'overdue', label: 'Retrasadas' },
   ];
   return (
-    <div className="inline-flex rounded-md border border-border bg-card p-0.5">
+    <div
+      role="tablist"
+      aria-label="Filtro de reparaciones"
+      className="inline-flex rounded-md border border-border bg-card p-0.5"
+    >
       {items.map((it) => (
         <button
           key={it.key}
           type="button"
+          role="tab"
+          aria-selected={value === it.key}
           onClick={() => onChange(it.key)}
           className={cn(
             'rounded-sm px-3 py-1.5 text-xs font-medium transition',

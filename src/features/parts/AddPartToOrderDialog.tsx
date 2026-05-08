@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -47,14 +47,16 @@ export default function AddPartToOrderDialog({ open, onOpenChange, orderId }: Pr
     defaultValues: { quantity: 1, unit_sale_price: 0, notes: '' },
   });
 
-  useEffect(() => {
-    if (!open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Reset al cerrar (ESC, click fuera, submit). Wrap onOpenChange en lugar
+  // de useEffect-on-open para no violar set-state-in-effect.
+  function handleOpenChange(next: boolean) {
+    if (!next) {
       setPicked(null);
       setSearch('');
       reset({ quantity: 1, unit_sale_price: 0, notes: '' });
     }
-  }, [open, reset]);
+    onOpenChange(next);
+  }
 
   function pick(p: Part) {
     setPicked(p);
@@ -74,14 +76,14 @@ export default function AddPartToOrderDialog({ open, onOpenChange, orderId }: Pr
     try {
       await add.mutateAsync(values);
       toast.success('Pieza agregada a la orden');
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       toast.error(getErrorMessage(err));
     }
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Agregar pieza a la orden</DialogTitle>

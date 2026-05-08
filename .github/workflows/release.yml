@@ -36,10 +36,18 @@ jobs:
       - name: Build & publish to GitHub Releases
         run: npm run dist:win
         env:
+          # GH_TOKEN auto-provisto por Actions; permisos de write se piden en
+          # el bloque `permissions` de arriba (`contents: write`).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_ENV: production
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_PROD }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+          # Conectividad de la app empacada → Supabase. Estos secrets DEBEN
+          # estar configurados en Settings → Secrets and variables → Actions
+          # del repo. Sin ellos el binario sale sin URL/anon key y crashea
+          # al intentar autenticarse.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Sentry para reportes de errores (opcional — si no están,
+          # captureUnlessBenign degrada silenciosamente).
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_DSN_MAIN: ${{ secrets.SENTRY_DSN_MAIN }}
           # Firma de código (descomentar cuando llegue el certificado).

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useMaybeSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import { useCreateSale, useCurrentSession } from './hooks';
 import { calcLineTotal, type CartLine, type SalePaymentMethod } from './types';
 import { PAYMENT_METHOD_LABELS } from './types';
@@ -17,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { currency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errors';
+import { log } from '@/lib/logger';
 
 type Tab = 'producto' | 'reparacion';
 
@@ -32,6 +34,7 @@ export default function NewSalePage() {
   const navigate = useNavigate();
   const sessionQ = useCurrentSession();
   const create = useCreateSale();
+  const sucursalId = useMaybeSucursalId();
 
   const [tab, setTab] = useState<Tab>('producto');
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -48,6 +51,20 @@ export default function NewSalePage() {
   useEffect(() => {
     if (noSession) navigate('/caja');
   }, [noSession, navigate]);
+
+  // Cambio de sucursal mid-venta: la sesión de caja es por sucursal, así que
+  // un carrito armado para A no se puede cobrar contra B. Cancelar y avisar.
+  const lastSucursalRef = useRef(sucursalId);
+  useEffect(() => {
+    if (lastSucursalRef.current !== sucursalId) {
+      const wasFilled = lines.length > 0;
+      lastSucursalRef.current = sucursalId;
+      if (wasFilled) {
+        toast.warning('Venta cancelada por cambio de sucursal');
+      }
+      navigate('/caja');
+    }
+  }, [sucursalId, lines.length, navigate]);
 
   function addProduct(p: ProductWithCategory) {
     const existing = lines.find((l) => l.product_id === p.id);
@@ -164,7 +181,7 @@ export default function NewSalePage() {
       toast.success(`VTA-${sale.folio} registrada`);
       navigate(`/caja/${sale.id}`);
     } catch (err) {
-      console.error('[NewSalePage] checkout error:', err);
+      log.error('cash', 'checkout error', err);
       const msg = getErrorMessage(err);
       // Detectamos el rejection del trigger prevent_negative_stock — la
       // validación client-side puede pasar y la DB rechazar si entre
@@ -201,7 +218,16 @@ export default function NewSalePage() {
 
   // Render-only short-circuit: ya pasamos por todos los hooks arriba, así
   // que el orden es estable. El effect de arriba se encarga del redirect.
-  if (noSession) return null;
+  if (noSession) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-12 text-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          La sesión de caja se cerró. Redirigiendo…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -217,11 +243,17 @@ export default function NewSalePage() {
       <div className="grid flex-1 gap-4 px-8 py-6 lg:grid-cols-[1fr_400px]">
         <Card>
           <CardHeader>
-            <div className="inline-flex w-full rounded-md border border-border bg-card p-0.5">
+            <div
+              role="tablist"
+              aria-label="Tipo de línea para agregar al carrito"
+              className="inline-flex w-full rounded-md border border-border bg-card p-0.5"
+            >
               {(['producto', 'reparacion'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
+                  role="tab"
+                  aria-selected={tab === t}
                   onClick={() => setTab(t)}
                   className={cn(
                     'flex-1 rounded-sm px-3 py-1.5 text-xs font-medium transition',
@@ -454,7 +486,7 @@ export default function NewSalePage() {
                 className="w-full"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={create.isPending || lines.length === 0}
+                disabled={create.isPending || lines.length === 0 || totals.total <= 0}
               >
                 {create.isPending ? 'Cobrando...' : `Cobrar ${currency(totals.total)}`}
               </Button>

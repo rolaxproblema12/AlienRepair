@@ -5,8 +5,11 @@ export const customerSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(7, 'Teléfono inválido')
-    .regex(/^[+\d\s()-]+$/, 'Solo dígitos y +()-'),
+    .min(7, 'Teléfono inválido (mínimo 7 dígitos)')
+    .regex(
+      /^[+\d\s()-]+$/,
+      'Formato inválido. Usá dígitos, opcionalmente +, espacios, ( ) o -. Ej: +52 55 1234 5678',
+    ),
   email: z
     .string()
     .trim()

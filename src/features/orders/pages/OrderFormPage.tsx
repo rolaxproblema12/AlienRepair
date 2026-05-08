@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +9,7 @@ import {
   useCustomerWarrantyOrders,
 } from '@/features/customers/hooks';
 import { useCurrentSucursal } from '@/features/sucursales/hooks';
+import { useMaybeSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import { useOrder, useSaveRepairOrder } from '../hooks';
 import { repairOrderSchema, type RepairOrderInput } from '../schemas';
 import {
@@ -47,13 +48,14 @@ export default function OrderFormPage() {
   const save = useSaveRepairOrder();
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
 
+  const sucursalId = useMaybeSucursalId();
   const {
     register,
     handleSubmit,
     watch,
     setValue,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<RepairOrderInput>({
     resolver: zodResolver(repairOrderSchema),
     defaultValues: {
@@ -78,6 +80,26 @@ export default function OrderFormPage() {
       warranty_void_reason: null,
     },
   });
+
+  // Cambio de sucursal mid-form: la OS de la sucursal A no es accesible
+  // en B (RLS lo bloquea); el form abierto con datos de A no debe seguir
+  // visible. Avisar y volver a la lista.
+  const lastSucursalRef = useRef(sucursalId);
+  useEffect(() => {
+    if (lastSucursalRef.current !== sucursalId) {
+      const prevSucursal = lastSucursalRef.current;
+      lastSucursalRef.current = sucursalId;
+      // Solo avisar si había una sucursal previa (no en mount inicial).
+      if (prevSucursal != null) {
+        if (id) {
+          toast.warning('OS no disponible en esta sucursal');
+        } else if (isDirty) {
+          toast.warning('Cambios descartados por cambio de sucursal');
+        }
+        navigate('/reparaciones');
+      }
+    }
+  }, [sucursalId, id, isDirty, navigate]);
 
   useEffect(() => {
     if (id && existing.data) {
@@ -357,12 +379,20 @@ export default function OrderFormPage() {
                 {errors.down_payment && (
                   <p className="text-xs text-destructive">{errors.down_payment.message}</p>
                 )}
+                {!errors.down_payment && numDown > numCost && numCost > 0 && (
+                  <p className="text-xs text-destructive">
+                    El anticipo excede el costo
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Saldo</Label>
                 <div className="rounded-md border border-input bg-secondary px-3 py-2 text-sm font-medium">
                   {currency(saldo)}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  = costo − anticipo (calculado automáticamente)
+                </p>
               </div>
             </div>
             <div className="space-y-2">

@@ -109,6 +109,11 @@ export default function ProductPicker({ onPick }: Props) {
                         {p.category.name}
                       </span>
                     )}
+                    {lowStock && (
+                      <span className="inline-flex items-center rounded bg-destructive px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-destructive-foreground">
+                        Sin stock
+                      </span>
+                    )}
                   </div>
                   <div className="line-clamp-1 text-sm font-medium">{p.name}</div>
                   <div className="text-[11px] text-muted-foreground">

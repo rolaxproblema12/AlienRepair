@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useSucursalStore } from '@/lib/sucursalStore';
 import type { Sucursal } from './types';
@@ -18,7 +19,7 @@ export function useUserSucursales() {
   return useQuery({
     queryKey: ['user-sucursales', userId],
     enabled: !!userId,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.MEDIUM,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sucursales')
@@ -87,7 +88,7 @@ export function useSetCurrentSucursal() {
 export function useAdminSucursales() {
   return useQuery({
     queryKey: ['admin', 'sucursales'],
-    staleTime: 30_000,
+    staleTime: STALE_TIMES.FAST,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sucursales')
@@ -141,7 +142,7 @@ export function useUserSucursalAssignments(userId?: string) {
   return useQuery({
     queryKey: ['admin', 'user-sucursal-assignments', userId],
     enabled: !!userId,
-    staleTime: 30_000,
+    staleTime: STALE_TIMES.FAST,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_sucursales')
@@ -149,6 +150,26 @@ export function useUserSucursalAssignments(userId?: string) {
         .eq('user_id', userId!);
       if (error) throw error;
       return (data ?? []) as UserSucursalRow[];
+    },
+  });
+}
+
+// Conteo de sucursales asignadas por usuario. Solo admin (RLS bloquea otros).
+// Usado en UsersPage para advertir cuando un operador queda sin acceso real.
+export function useAllUserSucursalCounts() {
+  return useQuery({
+    queryKey: ['admin', 'user-sucursal-counts'],
+    staleTime: STALE_TIMES.FAST,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_sucursales')
+        .select('user_id, sucursal_id');
+      if (error) throw error;
+      const counts = new Map<string, number>();
+      for (const row of (data ?? []) as UserSucursalRow[]) {
+        counts.set(row.user_id, (counts.get(row.user_id) ?? 0) + 1);
+      }
+      return counts;
     },
   });
 }
@@ -164,6 +185,7 @@ export function useAssignUserToSucursal() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['admin', 'user-sucursal-assignments', vars.userId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'user-sucursal-counts'] });
       qc.invalidateQueries({ queryKey: ['user-sucursales'] });
     },
   });
@@ -182,6 +204,7 @@ export function useUnassignUserFromSucursal() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['admin', 'user-sucursal-assignments', vars.userId] });
+      qc.invalidateQueries({ queryKey: ['admin', 'user-sucursal-counts'] });
       qc.invalidateQueries({ queryKey: ['user-sucursales'] });
     },
   });

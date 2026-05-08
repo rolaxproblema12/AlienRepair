@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useSucursalStore } from '@/lib/sucursalStore';
 import { getErrorMessage } from '@/lib/errors';
+import { log } from '@/lib/logger';
 
 export type UserRole = 'admin' | 'usuario';
 
@@ -158,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (error) {
         if (!silent) {
-          console.error('[Auth] No se pudo cargar el perfil', error);
+          log.error('auth', 'No se pudo cargar el perfil', error);
           toast.error(`No se pudo cargar perfil: ${error.message}`);
         }
         return null;
@@ -168,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return data as Profile;
     } catch (err) {
       if (!silent) {
-        console.error('[Auth] loadProfile excepción', err);
+        log.error('auth', 'loadProfile excepción', err);
         toast.error(getErrorMessage(err));
       }
       return null;
@@ -234,7 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((err) => {
-        console.error('[Auth] getSession error', err);
+        log.error('auth', 'getSession error', err);
         clearStaleSupabaseStorage();
         if (mounted) setLoading(false);
       });
@@ -283,21 +284,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .exchangeCodeForSession(code)
           .then(({ error }) => {
             if (error) {
-              console.error('[Auth] exchangeCodeForSession error', error);
+              log.error('auth', 'exchangeCodeForSession error', error);
               toast.error(`Error al iniciar sesión: ${error.message}`);
               if (mounted) setLoading(false);
             }
             // onAuthStateChange SIGNED_IN se encargará de cargar perfil y bajar loading.
           })
           .catch((err) => {
-            console.error('[Auth] exchangeCodeForSession excepción', err);
+            log.error('auth', 'exchangeCodeForSession excepción', err);
             toast.error(`Error al iniciar sesión: ${getErrorMessage(err)}`);
             if (mounted) setLoading(false);
           });
         return;
       }
 
-      console.warn('[Auth] deep-link sin code PKCE — ignorado', parsed.pathname);
+      log.warn('auth', 'deep-link sin code PKCE — ignorado', { pathname: parsed.pathname });
     });
 
     return () => {

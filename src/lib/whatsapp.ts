@@ -1,8 +1,22 @@
 const DEFAULT_COUNTRY_PREFIX = '52'; // México
 
+/**
+ * Convierte un teléfono de input libre a string solo-dígitos para WhatsApp.
+ *
+ * - Si el usuario escribió un `+` al inicio, se respeta su código de país
+ *   (cliente uruguayo "+598 99 123 456" → "598991234560..." sin prepender 52).
+ * - Si NO escribió `+` y el número parece ya tener código (52, 1, o >10 dígitos),
+ *   se respeta tal cual.
+ * - Si NO escribió `+` y el número parece local (≤10 dígitos sin prefijo 52/1),
+ *   se prepende el default mexicano. Esto cubre el caso típico del shop MX.
+ */
 export function normalizePhone(input: string): string {
-  const digits = (input ?? '').replace(/\D/g, '');
+  const raw = input ?? '';
+  const hasPlus = raw.trim().startsWith('+');
+  const digits = raw.replace(/\D/g, '');
   if (!digits) return '';
+  // Usuario fue explícito con +: respetá su código de país sin tocar.
+  if (hasPlus) return digits;
   if (digits.startsWith('52') || digits.startsWith('1') || digits.length > 10) return digits;
   return `${DEFAULT_COUNTRY_PREFIX}${digits}`;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart3,
@@ -68,16 +68,15 @@ function FullPalette({ open, onOpenChange }: Props) {
   const parts = useParts({ search: hasQuery ? debouncedQuery : '' });
   const sales = useSales({ search: hasQuery ? debouncedQuery : '' });
 
-  // Reset al cerrar para que la próxima Ctrl+K abra con el input limpio.
-  // setState-in-effect es intencional acá: el `open` lo controla el padre,
-  // así que no hay un único onOpenChange donde meter el reset.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!open) setQuery('');
-  }, [open]);
+  // Reset al cerrar (ESC, click fuera, navegación) para que la próxima
+  // Ctrl+K abra con el input limpio.
+  function handleOpenChange(next: boolean) {
+    if (!next) setQuery('');
+    onOpenChange(next);
+  }
 
   function go(path: string) {
-    onOpenChange(false);
+    handleOpenChange(false);
     navigate(path);
   }
 
@@ -113,7 +112,7 @@ function FullPalette({ open, onOpenChange }: Props) {
   const matchedSales = (sales.data ?? []).slice(0, 6);
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+    <CommandDialog open={open} onOpenChange={handleOpenChange}>
       <CommandInput
         placeholder="Buscar folio, cliente, equipo..."
         value={query}

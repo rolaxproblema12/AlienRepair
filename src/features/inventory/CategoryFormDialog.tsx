@@ -115,6 +115,8 @@ export default function CategoryFormDialog({ open, onOpenChange, category }: Pro
                       : 'border-transparent',
                   )}
                   title={c.name}
+                  aria-label={`Color ${c.name}`}
+                  aria-pressed={color === c.value}
                 />
               ))}
             </div>

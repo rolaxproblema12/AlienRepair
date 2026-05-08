@@ -68,6 +68,11 @@
   padding: 2px 0;
   border: none;
   font-size: 9.5pt;
+  /* En 80mm el ancho útil es ~72mm. Sin word-break, descripciones largas
+     (ej: "Pantalla iPhone 13 Pro Max OEM completa con tactil") rompen el
+     layout horizontal y el ticket sale cortado. */
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .print-kv {
@@ -175,4 +180,36 @@
 
 .print-termica-page {
   page: termica;
+}
+
+/* Etiqueta de OS — 80mm de ancho (mismo rollo térmico) × alto chico para
+   no desperdiciar papel. Solo folio + nombre del cliente + brand/modelo. */
+.print-label {
+  width: 80mm;
+  padding: 3mm 4mm;
+  font-family: inherit;
+}
+
+.print-label .folio {
+  font-size: 18pt;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.print-label .meta {
+  font-size: 9pt;
+  text-align: center;
+  margin-top: 2mm;
+  line-height: 1.25;
+}
+
+@page label {
+  size: 80mm 40mm;
+  margin: 0;
+}
+
+.print-label-page {
+  page: label;
 }

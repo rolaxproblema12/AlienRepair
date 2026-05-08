@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { log } from '@/lib/logger';
 import { useSaveExpense } from './hooks';
 import OrderForExpenseCombobox from './OrderForExpenseCombobox';
 import { expenseSchema, type ExpenseInput } from './schemas';
@@ -93,7 +94,7 @@ export default function ExpenseFormDialog({
       toast.success(expense ? 'Gasto actualizado' : 'Gasto registrado');
       onOpenChange(false);
     } catch (err) {
-      console.error('[ExpenseFormDialog] save error:', err);
+      log.error('accounting', 'save expense error', err);
       toast.error(getErrorMessage(err));
     }
   });

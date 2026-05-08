@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { captureUnlessBenign } from '@/lib/sentry';
+import { log } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -17,8 +17,9 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info);
-    captureUnlessBenign(error, { componentStack: info.componentStack });
+    log.error('error-boundary', 'Componente lanzó error', error, {
+      componentStack: info.componentStack,
+    });
   }
 
   handleReload = () => {

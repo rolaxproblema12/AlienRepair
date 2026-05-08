@@ -111,7 +111,11 @@ export default function IntakeChecklistFields({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label>¿Se hizo revisión al recibir el equipo?</Label>
-          <div className="inline-flex rounded-md border border-input bg-secondary p-0.5 text-sm">
+          <div
+            role="radiogroup"
+            aria-label="¿Se hizo revisión al recibir el equipo?"
+            className="inline-flex rounded-md border border-input bg-secondary p-0.5 text-sm"
+          >
             {(
               [
                 { v: 'unset', label: 'Sin definir' },
@@ -122,6 +126,8 @@ export default function IntakeChecklistFields({
               <button
                 key={opt.v}
                 type="button"
+                role="radio"
+                aria-checked={applies === opt.v}
                 onClick={() => handleAppliesChange(opt.v)}
                 className={cn(
                   'rounded px-3 py-1.5 transition',

@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { todayIso } from '@/lib/dates';
+import { invalidateOrderRelated } from '@/lib/queryInvalidation';
 import { useMaybeSucursalId } from '@/features/sucursales/useScopedSucursalId';
 
 interface OrderRow {
@@ -10,13 +11,6 @@ interface OrderRow {
   status?: string;
   estimated_delivery?: string | null;
   kind?: string;
-}
-
-function isOverdueRow(row: OrderRow | null | undefined, today: string): boolean {
-  if (!row) return false;
-  if (!row.status || !row.estimated_delivery) return false;
-  if (row.status === 'listo' || row.status === 'entregado') return false;
-  return row.estimated_delivery < today;
 }
 
 export function useRealtimeOrders() {
@@ -39,74 +33,47 @@ export function useRealtimeOrders() {
           filter: `sucursal_id=eq.${sucursalId}`,
         },
         (payload) => {
-          const today = todayIso();
           const newRow = (payload.new ?? null) as OrderRow | null;
           const oldRow = (payload.old ?? null) as OrderRow | null;
           const eventType = payload.eventType;
 
-          // Invalidamos solo la sucursal activa: el filter del subscription
-          // ya garantiza que estos eventos son de esta sucursal, así que no
-          // tiene sentido tocar la cache de otras.
-          qc.invalidateQueries({ queryKey: ['orders', sucursalId] });
-          qc.invalidateQueries({ queryKey: ['orders-agenda', sucursalId] });
-
-          // Saldo y pagos pueden cambiar al editar costo o status; invalidar
-          // siempre los balances/pagos del row tocado.
-          if (newRow?.id || oldRow?.id) {
-            const orderId = newRow?.id ?? oldRow?.id;
-            qc.invalidateQueries({ queryKey: ['order-balance', sucursalId, orderId] });
-            qc.invalidateQueries({ queryKey: ['order-payments', sucursalId, orderId] });
-          }
-
+          const orderId = newRow?.id ?? oldRow?.id;
           // Si la orden pasó a/desde 'entregado', el reporte contable cambia.
           const statusChanged = oldRow?.status !== newRow?.status;
-          const touchesAccounting =
-            statusChanged &&
-            (oldRow?.status === 'entregado' || newRow?.status === 'entregado');
-          if (touchesAccounting || payload.eventType !== 'UPDATE') {
-            qc.invalidateQueries({ queryKey: ['accounting', 'daily', sucursalId] });
+          const accountingAffected =
+            (statusChanged &&
+              (oldRow?.status === 'entregado' || newRow?.status === 'entregado')) ||
+            eventType !== 'UPDATE';
+
+          invalidateOrderRelated(qc, sucursalId, {
+            orderId,
+            customerId: newRow?.customer_id,
+            accountingAffected,
+          });
+          // Si el cliente cambió, también invalidar las queries del cliente
+          // anterior — el helper se llama una segunda vez con ese customerId.
+          if (
+            oldRow?.customer_id &&
+            oldRow.customer_id !== newRow?.customer_id
+          ) {
+            invalidateOrderRelated(qc, sucursalId, {
+              customerId: oldRow.customer_id,
+            });
           }
 
-          const wasOverdue = isOverdueRow(oldRow, today);
-          const isNowOverdue = isOverdueRow(newRow, today);
-          const overdueChanged = wasOverdue !== isNowOverdue;
+          if (eventType === 'DELETE' && oldRow?.id) {
+            qc.removeQueries({ queryKey: ['order', sucursalId, oldRow.id] });
+          }
 
-          if (eventType === 'INSERT') {
-            if (newRow?.customer_id) {
-              qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId, newRow.customer_id] });
-              qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId, newRow.customer_id] });
-            }
-            if (isNowOverdue) {
-              qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
-              qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
-            }
-          } else if (eventType === 'DELETE') {
-            if (oldRow?.id) qc.removeQueries({ queryKey: ['order', sucursalId, oldRow.id] });
-            if (oldRow?.customer_id) {
-              qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId, oldRow.customer_id] });
-              qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId, oldRow.customer_id] });
-            }
-            if (wasOverdue) {
-              qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
-              qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
-            }
-          } else if (eventType === 'UPDATE') {
-            if (newRow?.id) qc.invalidateQueries({ queryKey: ['order', sucursalId, newRow.id] });
-
-            const oldCustomer = oldRow?.customer_id;
-            const newCustomer = newRow?.customer_id;
-            if (oldCustomer) {
-              qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId, oldCustomer] });
-              qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId, oldCustomer] });
-            }
-            if (newCustomer && newCustomer !== oldCustomer) {
-              qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId, newCustomer] });
-              qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId, newCustomer] });
-            }
-            if (overdueChanged) {
-              qc.invalidateQueries({ queryKey: ['orders-overdue', sucursalId] });
-              qc.invalidateQueries({ queryKey: ['orders-overdue-count', sucursalId] });
-            }
+          // Feedback visual cuando otra sesión cambia el status de una OS.
+          // No disparamos en INSERT/DELETE para evitar spam y ruido visual
+          // en operaciones masivas. La id evita duplicar el toast si el mismo
+          // cambio se replica varias veces (Supabase a veces lo hace).
+          if (eventType === 'UPDATE' && statusChanged) {
+            toast('Estado de OS actualizado en otra sesión', {
+              id: `realtime-order-${orderId}`,
+              duration: 2000,
+            });
           }
         }
       )

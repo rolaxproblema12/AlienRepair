@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
 import type { Sucursal, SucursalSetting } from '@/features/sucursales/types';
 import type { SucursalConfigInput } from './schemas';
 
@@ -13,7 +14,7 @@ export function useSucursalConfig(sucursalId: string | null | undefined) {
   return useQuery({
     queryKey: ['sucursal-config', sucursalId],
     enabled: !!sucursalId,
-    staleTime: 30_000,
+    staleTime: STALE_TIMES.FAST,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sucursales')
@@ -52,7 +53,7 @@ export function useSucursalSettings(sucursalId: string | null | undefined) {
   return useQuery({
     queryKey: ['sucursal-settings', sucursalId],
     enabled: !!sucursalId,
-    staleTime: 30_000,
+    staleTime: STALE_TIMES.FAST,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sucursal_settings')

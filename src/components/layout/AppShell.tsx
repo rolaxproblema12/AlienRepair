@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import pkg from '../../../package.json';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useCurrentSucursal } from '@/features/sucursales/hooks';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useOverdueOrdersCount } from '@/features/orders/hooks';
 import { useRealtimeOrders } from '@/features/orders/useRealtimeOrders';
+import { useRealtimeCash } from '@/features/cash/useRealtimeCash';
 import { useOverdueLoginToast } from '@/features/orders/useOverdueLoginToast';
 import CommandPalette from './CommandPalette';
 import SucursalSelector from './SucursalSelector';
@@ -156,6 +158,9 @@ export default function AppShell() {
             <LogOut className="mr-2 h-4 w-4" />
             Cerrar sesión
           </Button>
+          <div className="mt-2 px-2 text-[10px] tabular-nums text-muted-foreground/60">
+            v{pkg.version}
+          </div>
         </div>
       </aside>
 
@@ -183,7 +188,11 @@ export default function AppShell() {
               Cargando sucursales…
             </div>
           ) : truelyNoSucursal && !isAgnosticRoute ? (
-            <NoSucursalScreen isAdmin={profile?.role === 'admin'} />
+            <NoSucursalScreen
+              isAdmin={profile?.role === 'admin'}
+              userEmail={profile?.email ?? null}
+              onSignOut={signOut}
+            />
           ) : !currentSucursal ? (
             // Ruta admin agnóstica (ej: /admin/sucursales) sin sucursal activa —
             // render directo sin montar hooks scopeados.
@@ -205,6 +214,7 @@ export default function AppShell() {
 // sucursal activa, así useScopedSucursalId() nunca tira aquí dentro.
 function ScopedShellContent() {
   useRealtimeOrders();
+  useRealtimeCash();
   useOverdueLoginToast();
   return <Outlet />;
 }
@@ -232,7 +242,15 @@ function OverdueNavLink() {
   );
 }
 
-function NoSucursalScreen({ isAdmin }: { isAdmin: boolean }) {
+function NoSucursalScreen({
+  isAdmin,
+  userEmail,
+  onSignOut,
+}: {
+  isAdmin: boolean;
+  userEmail: string | null;
+  onSignOut: () => Promise<void>;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -240,20 +258,49 @@ function NoSucursalScreen({ isAdmin }: { isAdmin: boolean }) {
       </div>
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Sin sucursal asignada</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          {isAdmin
-            ? 'Aún no hay sucursales en el sistema o no estás asignado a ninguna. Crea la primera sucursal para empezar.'
-            : 'El administrador todavía no te ha asignado a ninguna sucursal. Pídele que lo haga desde Admin → Usuarios.'}
-        </p>
+        {isAdmin ? (
+          <p className="max-w-md text-sm text-muted-foreground">
+            Aún no hay sucursales en el sistema. Crea la primera para empezar a
+            operar — después podrás asignar usuarios desde Admin → Usuarios.
+          </p>
+        ) : (
+          <div className="max-w-md space-y-2 text-sm text-muted-foreground">
+            <p>
+              Tu cuenta {userEmail ? <strong>{userEmail}</strong> : null} está
+              activa pero todavía no tiene ninguna sucursal asignada, por lo que
+              no puedes acceder a datos del sistema.
+            </p>
+            <p>
+              Pídele al administrador que te asigne desde{' '}
+              <strong>Admin → Usuarios → Asignar</strong>. Si crees que ya estás
+              asignado, cierra sesión y vuelve a entrar.
+            </p>
+          </div>
+        )}
       </div>
-      {isAdmin && (
-        <Button asChild>
-          <Link to="/admin/sucursales">
-            <Building2 className="mr-2 h-4 w-4" />
-            Administrar sucursales
-          </Link>
-        </Button>
-      )}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {isAdmin ? (
+          <>
+            <Button asChild>
+              <Link to="/admin/sucursales">
+                <Building2 className="mr-2 h-4 w-4" />
+                Administrar sucursales
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/admin/users">
+                <Users className="mr-2 h-4 w-4" />
+                Usuarios
+              </Link>
+            </Button>
+          </>
+        ) : (
+          <Button variant="outline" onClick={() => onSignOut()}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Cerrar sesión
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
 import { currency } from '@/lib/format';
 import { generateCsvContent, downloadCsv } from '@/lib/csv';
 import { printDocument } from '@/lib/printing';
+import { log } from '@/lib/logger';
 import { currentYearMonth } from './shared';
 
 export default function MonthlyAccountingPanel() {
@@ -67,7 +68,7 @@ export default function MonthlyAccountingPanel() {
         'carta',
       );
     } catch (err) {
-      console.error('print error', err);
+      log.error('reports', 'print monthly accounting error', err);
     }
   }
 

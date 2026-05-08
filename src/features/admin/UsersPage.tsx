@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Building2, Check } from 'lucide-react';
+import { AlertTriangle, Building2, Check } from 'lucide-react';
 import { useAdminProfiles, useUpdateProfile } from './hooks';
 import type { UserRole } from '@/features/auth/AuthProvider';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   useAdminSucursales,
+  useAllUserSucursalCounts,
   useUserSucursalAssignments,
   useAssignUserToSucursal,
   useUnassignUserFromSucursal,
@@ -19,6 +20,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -40,20 +42,62 @@ import {
 import { formatDateTime } from '@/lib/dates';
 import { getErrorMessage } from '@/lib/errors';
 
+interface PendingConfirm {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => Promise<void> | void;
+}
+
 export default function UsersPage() {
   const { profile } = useAuth();
   const { data, isLoading } = useAdminProfiles();
+  const { data: sucursalCounts } = useAllUserSucursalCounts();
   const update = useUpdateProfile();
   const [assignTarget, setAssignTarget] = useState<{ id: string; email: string | null } | null>(null);
+  // Reemplaza window.confirm() (modal del SO, feo) por un Dialog inline
+  // de shadcn. Una sola pieza de state cubre los dos prompts del page.
+  const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
+
+  function getSucursalCount(userId: string) {
+    return sucursalCounts?.get(userId) ?? 0;
+  }
+
+  async function doToggleActive(id: string, active: boolean) {
+    try {
+      await update.mutateAsync({ id, active });
+      toast.success(active ? 'Usuario activado' : 'Usuario desactivado');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
 
   async function toggleActive(id: string, active: boolean) {
     if (id === profile?.id && !active) {
       toast.error('No puedes desactivarte a ti mismo.');
       return;
     }
+    if (active) {
+      const target = data?.find((u) => u.id === id);
+      const isOperator = target?.role !== 'admin';
+      if (isOperator && getSucursalCount(id) === 0) {
+        setConfirm({
+          title: 'Activar sin sucursales',
+          description:
+            'Este usuario no tiene sucursales asignadas. RLS le bloqueará todo acceso a datos hasta que asignes al menos una sucursal. ¿Activar de todos modos?',
+          confirmLabel: 'Activar',
+          onConfirm: () => doToggleActive(id, active),
+        });
+        return;
+      }
+    }
+    await doToggleActive(id, active);
+  }
+
+  async function doChangeRole(id: string, role: UserRole) {
     try {
-      await update.mutateAsync({ id, active });
-      toast.success(active ? 'Usuario activado' : 'Usuario desactivado');
+      await update.mutateAsync({ id, role });
+      toast.success('Rol actualizado');
     } catch (err) {
       toast.error(getErrorMessage(err));
     }
@@ -64,12 +108,17 @@ export default function UsersPage() {
       toast.error('No puedes quitarte a ti mismo el rol de admin.');
       return;
     }
-    try {
-      await update.mutateAsync({ id, role });
-      toast.success('Rol actualizado');
-    } catch (err) {
-      toast.error(getErrorMessage(err));
+    if (role !== 'admin' && getSucursalCount(id) === 0) {
+      setConfirm({
+        title: 'Cambiar rol sin sucursales',
+        description:
+          'Al quitar el rol de admin, este usuario solo verá datos de sus sucursales asignadas — y no tiene ninguna. Quedará sin acceso real. ¿Cambiar el rol de todos modos?',
+        confirmLabel: 'Cambiar rol',
+        onConfirm: () => doChangeRole(id, role),
+      });
+      return;
     }
+    await doChangeRole(id, role);
   }
 
   async function saveCommissionRate(id: string, pct: number) {
@@ -157,14 +206,21 @@ export default function UsersPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAssignTarget({ id: u.id, email: u.email })}
-                      >
-                        <Building2 className="mr-1.5 h-3.5 w-3.5" />
-                        Asignar
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAssignTarget({ id: u.id, email: u.email })}
+                        >
+                          <Building2 className="mr-1.5 h-3.5 w-3.5" />
+                          Asignar
+                        </Button>
+                        <SucursalCountBadge
+                          count={getSucursalCount(u.id)}
+                          isAdmin={u.role === 'admin'}
+                          active={u.active}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDateTime(u.created_at)}
@@ -185,7 +241,62 @@ export default function UsersPage() {
           onClose={() => setAssignTarget(null)}
         />
       )}
+
+      <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirm?.title}</DialogTitle>
+            <DialogDescription>{confirm?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirm(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                const fn = confirm?.onConfirm;
+                setConfirm(null);
+                if (fn) await fn();
+              }}
+            >
+              {confirm?.confirmLabel ?? 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function SucursalCountBadge({
+  count,
+  isAdmin,
+  active,
+}: {
+  count: number;
+  isAdmin: boolean;
+  active: boolean;
+}) {
+  if (isAdmin) {
+    return (
+      <Badge variant="muted" className="text-[10px]">
+        admin · todas
+      </Badge>
+    );
+  }
+  if (count === 0 && active) {
+    return (
+      <Badge variant="destructive" className="gap-1 text-[10px]">
+        <AlertTriangle className="h-3 w-3" />
+        Sin acceso
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant={count === 0 ? 'muted' : 'success'} className="text-[10px]">
+      {count}
+    </Badge>
   );
 }
 

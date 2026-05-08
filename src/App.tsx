@@ -24,6 +24,7 @@ import AccountingPage from '@/features/accounting/AccountingPage';
 import ExpensesPage from '@/features/accounting/ExpensesPage';
 import PrintOrderPage from '@/features/orders/pages/PrintOrderPage';
 import PrintReceiptPage from '@/features/orders/pages/PrintReceiptPage';
+import PrintOrderLabelPage from '@/features/orders/pages/PrintOrderLabelPage';
 import CodesPage from '@/features/admin/CodesPage';
 import UsersPage from '@/features/admin/UsersPage';
 import AuditPage from '@/features/admin/AuditPage';
@@ -105,6 +106,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route path="/print/order/:id" element={<PrintOrderPage />} />
+              <Route path="/print/order-label/:id" element={<PrintOrderLabelPage />} />
               <Route path="/print/receipt/:id" element={<PrintReceiptPage />} />
               <Route path="/print/sale/:id" element={<PrintSalePage />} />
               <Route path="/print/report/:id" element={<PrintReportPage />} />

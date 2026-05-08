@@ -5,6 +5,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
+import { invalidateAccountingRelated } from '@/lib/queryInvalidation';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import type {
   AccountingDailyRow,
@@ -138,15 +140,13 @@ export function useSaveExpense() {
       return data as unknown as ExpenseWithOrder;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['expenses'] });
-      qc.invalidateQueries({ queryKey: ['expenses-infinite'] });
-      qc.invalidateQueries({ queryKey: ['accounting', 'daily'] });
-      qc.invalidateQueries({ queryKey: ['dashboard-revenue-7d'] });
+      invalidateAccountingRelated(qc, sucursalId);
     },
   });
 }
 
 export function useDeleteExpense() {
+  const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -154,10 +154,7 @@ export function useDeleteExpense() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['expenses'] });
-      qc.invalidateQueries({ queryKey: ['expenses-infinite'] });
-      qc.invalidateQueries({ queryKey: ['accounting', 'daily'] });
-      qc.invalidateQueries({ queryKey: ['dashboard-revenue-7d'] });
+      invalidateAccountingRelated(qc, sucursalId);
     },
   });
 }
@@ -177,7 +174,7 @@ export function useAccountingDaily(from: string, to: string) {
       if (error) throw error;
       return (data ?? []) as unknown as AccountingDailyRow[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }
 
@@ -239,7 +236,7 @@ export function useOrdersForExpenseSearch(search = '') {
       if (error) throw error;
       return (data ?? []) as unknown as OrderForExpenseRow[];
     },
-    staleTime: trimmed ? 30_000 : 2 * 60_000,
+    staleTime: trimmed ? STALE_TIMES.FAST : STALE_TIMES.SLOW,
   });
 }
 
@@ -257,7 +254,7 @@ export function useOrderForExpense(id: string | null | undefined) {
       return data as unknown as OrderForExpenseRow;
     },
     enabled: !!id,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.MEDIUM,
   });
 }
 

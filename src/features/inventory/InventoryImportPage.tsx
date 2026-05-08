@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errors';
+import { log } from '@/lib/logger';
 
 const REQUIRED_COLS = ['sku', 'name', 'category', 'cost_price', 'sale_price'];
 const ALL_COLS = [
@@ -131,7 +132,7 @@ export default function InventoryImportPage() {
       setParsed(result.rows);
     };
     reader.onerror = () => {
-      console.error('[InventoryImportPage] FileReader error:', reader.error);
+      log.error('inventory', 'FileReader error en import CSV', reader.error);
       toast.error('No se pudo leer el archivo. ¿Está corrupto?');
       setFileName(null);
     };

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
+import { invalidatePartRelated } from '@/lib/queryInvalidation';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import type { PartInput, PartMovementInput, UsePartOnOrderInput } from './schemas';
 import type {
@@ -72,7 +74,7 @@ export function usePart(id: string | undefined) {
       return data as unknown as Part;
     },
     enabled: !!id,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.MEDIUM,
   });
 }
 
@@ -91,7 +93,7 @@ export function usePartBrands() {
       for (const r of data ?? []) set.add((r as { brand: string }).brand);
       return Array.from(set).filter(Boolean);
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }
 
@@ -154,16 +156,14 @@ export function useSavePart() {
 
       return part;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['parts'] });
-      qc.invalidateQueries({ queryKey: ['parts-brands'] });
-      qc.invalidateQueries({ queryKey: ['part'] });
-      qc.invalidateQueries({ queryKey: ['part-movements'] });
+    onSuccess: (data) => {
+      invalidatePartRelated(qc, sucursalId, { partId: data.id });
     },
   });
 }
 
 export function useDeletePart() {
+  const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -174,9 +174,8 @@ export function useDeletePart() {
       if (error) throw error;
       return id;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['parts'] });
-      qc.invalidateQueries({ queryKey: ['part'] });
+    onSuccess: (id) => {
+      invalidatePartRelated(qc, sucursalId, { partId: id });
     },
   });
 }
@@ -245,9 +244,7 @@ export function useRecordPartMovement(partId: string) {
       return data as PartMovement;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['parts'] });
-      qc.invalidateQueries({ queryKey: ['part'] });
-      qc.invalidateQueries({ queryKey: ['part-movements'] });
+      invalidatePartRelated(qc, sucursalId, { partId });
     },
   });
 }
@@ -312,10 +309,8 @@ export function useAddPartToOrder(orderId: string) {
       if (error) throw error;
       return data as PartMovement;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['parts'] });
-      qc.invalidateQueries({ queryKey: ['order-parts'] });
-      qc.invalidateQueries({ queryKey: ['order-balance'] });
+    onSuccess: (data) => {
+      invalidatePartRelated(qc, sucursalId, { partId: data.part_id, orderId });
     },
   });
 }
@@ -357,9 +352,7 @@ export function useRemovePartFromOrder(orderId: string) {
       return movementId;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['parts'] });
-      qc.invalidateQueries({ queryKey: ['order-parts'] });
-      qc.invalidateQueries({ queryKey: ['order-balance'] });
+      invalidatePartRelated(qc, sucursalId, { orderId });
     },
   });
 }

@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/dates';
 import { getErrorMessage } from '@/lib/errors';
+import { log } from '@/lib/logger';
 
 function statusOf(c: AccessCode): { label: string; tone: 'success' | 'muted' | 'warning' } {
   if (c.used_at) return { label: 'Usado', tone: 'muted' };
@@ -64,7 +65,7 @@ export default function CodesPage() {
       await copy(created.code);
       toast.success(`Código ${created.code} generado`);
     } catch (err) {
-      console.error('[CodesPage] generate error:', err);
+      log.error('admin', 'generate access code error', err);
       toast.error(getErrorMessage(err));
     }
   }
@@ -75,7 +76,7 @@ export default function CodesPage() {
       await del.mutateAsync(code);
       toast.success('Código eliminado');
     } catch (err) {
-      console.error('[CodesPage] delete error:', err);
+      log.error('admin', 'delete access code error', err);
       toast.error(getErrorMessage(err));
     }
   }

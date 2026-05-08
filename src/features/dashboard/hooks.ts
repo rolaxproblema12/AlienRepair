@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
 import { TZ } from '@/lib/dates';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 
@@ -36,6 +37,6 @@ export function useDashboardRevenue7d() {
       }
       return points;
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }

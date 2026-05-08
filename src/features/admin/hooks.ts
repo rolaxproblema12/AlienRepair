@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
 import type { UserRole } from '@/features/auth/AuthProvider';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 
@@ -61,7 +62,7 @@ export function useAccessCodes() {
       if (error) throw error;
       return (data ?? []) as AccessCode[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }
 
@@ -114,7 +115,7 @@ export function useAdminProfiles() {
       if (error) throw error;
       return (data ?? []) as AdminProfile[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }
 
@@ -166,6 +167,6 @@ export function useStatusAudit(limit = 200) {
       if (error) throw error;
       return (data ?? []) as unknown as StatusAuditRow[];
     },
-    staleTime: 5 * 60_000,
+    staleTime: STALE_TIMES.SLOW,
   });
 }

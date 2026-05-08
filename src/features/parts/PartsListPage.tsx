@@ -121,6 +121,8 @@ export default function PartsListPage() {
               size="icon"
               onClick={costs.toggle}
               title={costs.hidden ? 'Mostrar costos' : 'Ocultar costos'}
+              aria-label={costs.hidden ? 'Mostrar costos' : 'Ocultar costos'}
+              aria-pressed={!costs.hidden}
             >
               {costs.hidden ? (
                 <EyeOff className="h-4 w-4" />

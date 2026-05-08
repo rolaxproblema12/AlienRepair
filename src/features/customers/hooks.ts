@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STALE_TIMES } from '@/lib/queryConfig';
+import { invalidateCustomerRelated } from '@/lib/queryInvalidation';
 import { normalizePhone } from '@/lib/whatsapp';
 import { useScopedSucursalId } from '@/features/sucursales/useScopedSucursalId';
 import type { Customer } from './types';
@@ -30,7 +32,7 @@ export function useCustomers(search = '') {
       if (error) throw error;
       return data as Customer[];
     },
-    staleTime: trimmed ? 30_000 : 2 * 60_000,
+    staleTime: trimmed ? STALE_TIMES.FAST : STALE_TIMES.SLOW,
   });
 }
 
@@ -70,7 +72,7 @@ export function useCustomerActiveOrders(customerId: string | undefined) {
       return (data ?? []).length;
     },
     enabled: !!customerId,
-    staleTime: 30_000,
+    staleTime: STALE_TIMES.FAST,
   });
 }
 
@@ -154,14 +156,14 @@ export function useSaveCustomer() {
       if (error) throw error;
       return data as Customer;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['customers'] });
-      qc.invalidateQueries({ queryKey: ['customer'] });
+    onSuccess: (data) => {
+      invalidateCustomerRelated(qc, sucursalId, { customerId: data.id });
     },
   });
 }
 
 export function useDeleteCustomer() {
+  const sucursalId = useScopedSucursalId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -169,10 +171,8 @@ export function useDeleteCustomer() {
       if (error) throw error;
       return id;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['customers'] });
-      qc.invalidateQueries({ queryKey: ['customer'] });
-      qc.invalidateQueries({ queryKey: ['customer-active-orders'] });
+    onSuccess: (id) => {
+      invalidateCustomerRelated(qc, sucursalId, { customerId: id });
     },
   });
 }

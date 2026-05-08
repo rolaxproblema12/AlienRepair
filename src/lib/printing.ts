@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
 import { getErrorMessage } from './errors';
 
-export type PrintKind = 'order' | 'receipt' | 'sale' | 'report';
+export type PrintKind = 'order' | 'receipt' | 'sale' | 'report' | 'order-label';
 export type PrintSize = 'carta' | 'termica';
 
 export async function printDocument(kind: PrintKind, id: string, size: PrintSize) {

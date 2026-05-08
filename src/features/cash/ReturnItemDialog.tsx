@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Undo2 } from 'lucide-react';
 import { useReturnSaleItem } from './hooks';
@@ -40,24 +40,13 @@ export default function ReturnItemDialog({
     .reduce((s, r) => s + Number(r.quantity_returned), 0);
   const maxQty = Number(item.quantity) - alreadyReturned;
 
+  // SaleDetailPage monta este dialog solo cuando hay item activo (con `returnItem && <Dialog>`)
+  // y lo desmonta al cerrar, así que useState calcula los defaults frescos cada vez.
   const [qty, setQty] = useState<string>(String(maxQty));
-  const [refund, setRefund] = useState<string>('');
+  const [refund, setRefund] = useState<string>(
+    (maxQty * Number(item.unit_price)).toFixed(2),
+  );
   const [reason, setReason] = useState('');
-
-  // Reset cuando se abre con un item distinto. Mismo patrón que otros
-  // dialogs (CommandPalette, AddPartToOrderDialog) — el rule de
-  // set-state-in-effect no aplica para "reset on dialog open" porque el
-  // open flag viene del padre y no hay un único onOpenChange handler.
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setQty(String(maxQty));
-      // Default: qty * unit_price (devolución a precio del momento de la venta).
-      const defaultRefund = maxQty * Number(item.unit_price);
-      setRefund(defaultRefund.toFixed(2));
-      setReason('');
-    }
-  }, [open, item.id, maxQty, item.unit_price]);
 
   const qtyNum = Number(qty);
   const refundNum = Number(refund);
