@@ -29,7 +29,6 @@ import PrintOrderLabelPage from '@/features/orders/pages/PrintOrderLabelPage';
 import CodesPage from '@/features/admin/CodesPage';
 import UsersPage from '@/features/admin/UsersPage';
 import AuditPage from '@/features/admin/AuditPage';
-import LoginReportPage from '@/features/admin/LoginReportPage';
 import InventoryListPage from '@/features/inventory/InventoryListPage';
 import ProductFormPage from '@/features/inventory/ProductFormPage';
 import ProductDetailPage from '@/features/inventory/ProductDetailPage';
@@ -168,7 +167,6 @@ export default function App() {
                   <Route path="/admin/categorias" element={<CategoriesAdminPage />} />
                   <Route path="/admin/inventario-import" element={<InventoryImportPage />} />
                   <Route path="/admin/catalogo" element={<CatalogAdminPage />} />
-                  <Route path="/informes/login" element={<LoginReportPage />} />
                 </Route>
 
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

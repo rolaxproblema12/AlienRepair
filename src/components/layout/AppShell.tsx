@@ -32,7 +32,6 @@ import {
   AlertTriangle,
   Search,
   History,
-  FileText,
   Tag,
   Upload,
   Building2,
@@ -146,7 +145,6 @@ export default function AppShell() {
               <AdminLink to="/admin/inventario-import" icon={Upload} label="Importar inventario" />
               <AdminLink to="/admin/catalogo" icon={BookOpen} label="Catálogo" />
               <AdminLink to="/admin/audit" icon={History} label="Auditoría" />
-              <AdminLink to="/informes/login" icon={FileText} label="Informe de login" />
             </div>
           )}
         </nav>
