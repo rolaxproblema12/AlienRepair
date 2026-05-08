@@ -19,7 +19,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 22 LTS — paridad con la versión del dev (Node 24+) y npm 10+,
+          # que entiende lockfileVersion 3 sin falsos positivos de "missing"
+          # que sufríamos con npm 10 antiguo de Node 20.
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
