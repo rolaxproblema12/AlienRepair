@@ -23,6 +23,4 @@ create unique index if not exists order_payments_auto_collect_unique_idx
   where notes = 'Cobro automático al entregar';
 
 comment on index public.order_payments_auto_collect_unique_idx is
-  'Garantiza un único pago auto-cobro por OS al pasar a entregado. ' ||
-  'Race condition entre tabs concurrentes se resuelve a nivel DB ' ||
-  '(la segunda transacción falla con 23505 y el cliente la trata como no-op).';
+  'Garantiza un unico pago auto-cobro por OS al pasar a entregado. Race condition entre tabs concurrentes se resuelve a nivel DB (la segunda transaccion falla con 23505 y el cliente la trata como no-op).';
