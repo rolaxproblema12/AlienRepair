@@ -37,6 +37,13 @@ jobs:
 
       - name: Tests
         run: npm run test:run
+        env:
+          # Mismos dummies que ci.yml — supabase.ts crea el cliente al
+          # import (top-level) y aborta si url/key son undefined. Los tests
+          # mockean supabase per-archivo, pero el import del componente
+          # corre antes que los mocks intercepten.
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_ANON_KEY: test-anon-key-dummy
 
       - name: Build & publish to GitHub Releases
         run: npm run dist:win
