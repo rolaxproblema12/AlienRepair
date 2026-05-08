@@ -246,12 +246,14 @@ export function useUpdateOrderStatus() {
       // registrado vía OrderPaymentDialog antes (en cuyo caso el saldo
       // acá ya es 0 y no se crea pago auto).
       if (status === 'entregado') {
-        // Idempotencia: si ya existe un pago marcado como auto-cobro para
-        // esta OS, no creamos otro. Cubre el caso de doble-click o de marcar
-        // entregado dos veces seguidas. NO previene la race condition pura
-        // de dos tabs simultáneas (necesitaría un advisory lock SQL), pero
-        // sí cubre el escenario realista del taller (operador haciendo
-        // doble click por costumbre).
+        // Idempotencia + protección contra race conditions:
+        //
+        // 1) Pre-check (skip pre-insert si ya existe el auto-pago): cubre
+        //    doble-click del operador y reaperturas → re-cierres.
+        // 2) DB-level UNIQUE partial index (`order_payments_auto_collect_unique_idx`,
+        //    migración 0044) garantiza que dos tabs simultáneas no puedan
+        //    crear duplicados — la segunda transacción falla con SQLSTATE
+        //    23505 que atrapamos abajo.
         const { data: existing } = await supabase
           .from('order_payments')
           .select('id')
@@ -289,11 +291,16 @@ export function useUpdateOrderStatus() {
                 created_by: userId,
               });
             if (payErr) {
-              log.error('orders', 'Auto-cobro al entregar falló', payErr, {
-                orderId: id,
-                amount: balance,
-              });
-              throw payErr;
+              // 23505 = unique_violation. La otra tab ganó la carrera y ya
+              // creó el pago — no es error real, sólo skipeamos silencioso.
+              const code = (payErr as { code?: string }).code;
+              if (code !== '23505') {
+                log.error('orders', 'Auto-cobro al entregar falló', payErr, {
+                  orderId: id,
+                  amount: balance,
+                });
+                throw payErr;
+              }
             }
           }
         }
