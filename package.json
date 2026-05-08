@@ -136,8 +136,7 @@
     "win": {
       "target": [
         "nsis"
-      ],
-      "publisherName": "AlienTechnology"
+      ]
     },
     "nsis": {
       "oneClick": false,
