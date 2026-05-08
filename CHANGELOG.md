@@ -4,6 +4,45 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [1.6.4] — 2026-05-08
+
+### Added
+- **Helpers de invalidación centralizados** (`src/lib/queryInvalidation.ts`): 8 helpers (`invalidateOrderRelated`, `invalidateSaleRelated`, `invalidateSaleWithStock`, `invalidateProductRelated`, `invalidatePartRelated`, `invalidateCustomerRelated`, `invalidateAccountingRelated`, `invalidateCashSessionRelated`). Reemplazan ~150 llamadas dispersas de `qc.invalidateQueries({...})` con riesgo de olvidar keys.
+- **Logger centralizado** (`src/lib/logger.ts`): wrapper Sentry con scope tag, reemplaza ~13 `console.*` directos.
+- **STALE_TIMES constants** (`src/lib/queryConfig.ts`): tiers REALTIME/FAST/MEDIUM/SLOW/VERY_SLOW para reemplazar magic numbers.
+- **Etiqueta de OS** (nuevo PrintKind `'order-label'`): impresión 80mm × 40mm en rollo térmico con folio + cliente + marca/modelo, para pegar al equipo recibido.
+- **Migración 0043**: triggers `sale_returns_inherit_sucursal` y `sale_payments_inherit_sucursal` que faltaban (las tablas tenían `sucursal_id` pero no heredaban del padre como las otras hijas).
+- **Auto-update setup**: scripts `npm run release:patch/minor/major` (verifica + bumpea + tag + push), `docs/RELEASING.md` con flujo completo, troubleshooting y rollback.
+- **Tests**: `itemSchema.test`, `OrdersListPage.test`, `schemas.test`, `parts/schemas.test`, `whatsapp.test`, `e2e/orders/diagnosis.spec`. Total: 147 pasando.
+- **Versión visible** en footer del sidebar (`v1.6.4` leída de `package.json`).
+
+### Changed
+- **Split de archivos hooks grandes** con barrel re-export (sin romper imports existentes):
+  - `cash/hooks.ts` (759L) → `cash/hooks/{cashSession,sales,orderPayments,saleReturns,index}.ts`
+  - `inventory/hooks.ts` (547L) → `inventory/hooks/{categories,products,productMovements,productImport,inventoryUtility,index}.ts`
+  - `orders/hooks.ts` (482L) → `orders/hooks/{queries,mutations,diagnosis,index}.ts`
+- **ConfiguracionPage** (548L) → page minimalista + componentes hijos en `admin/configuracion/`.
+- **PrintOrderMenu** simplificado: 3 acciones fijas (orden carta, recibo térmica, etiqueta) en lugar de 4 sub-opciones de tamaño.
+- **Realtime feedback**: `useRealtimeOrders` y `useRealtimeCash` ahora muestran toast informativo al detectar cambios de otras sesiones (status update OS, venta nueva).
+- **`normalizePhone`** respeta el `+` explícito del usuario en lugar de forzar `52` (México) — compat internacional.
+
+### Fixed
+- **Logger**: `log.warn` ya llega a Sentry (antes quedaba silenciado); `captureUnlessBenign` ya no duplica extras ni pierde el `setLevel`.
+- **`useUpdateOrderStatus`** invalida accounting siempre que cambia status (antes no detectaba transición DESDE 'entregado' al reabrir una OS).
+- **Optimistic updates** en `useSaveRepairOrder` / `useSaveItemOrder` ahora cubren todos los campos del payload (antes el rollback dejaba estado mezclado al fallar).
+- **Cleanup de carrito** en `NewSalePage` y form en `OrderFormPage` al cambiar de sucursal mid-trabajo (antes los datos persistían y podías cobrar contra la sesión equivocada).
+- **Pantalla en blanco** al cerrarse caja desde otra PC reemplazada por loader + mensaje claro.
+- **Validación teléfono** mensaje de error con ejemplo internacional.
+- **`window.confirm()`** nativos en `UsersPage` reemplazados por Dialog shadcn (2 lugares).
+- **OrderFormPage**: feedback inline cuando anticipo > costo + label "calculado automáticamente" en Saldo readonly.
+- **Botón Cobrar** deshabilitado si total ≤ 0 (antes solo chequeaba carrito vacío).
+- **ProductPicker**: badge rojo "Sin stock" visible para productos con stock 0 (antes solo opacity 60% confuso).
+- **print.css 80mm**: `word-break: break-word` para descripciones largas que rompían el ancho.
+- **Migración 0043**: dos triggers de propagación de `sucursal_id` que faltaban.
+- **CI**: Node 20 → 22 LTS, `windows-latest` → `windows-2022`, vitest 4 → 3.2.4 para compat con vite 5, dummies de Supabase en step de tests.
+
+## [Skipped]
+
 ### Added
 - **Realtime para caja**: hook `useRealtimeCash` que sincroniza ventas, abonos, movimientos de productos y piezas, y devoluciones entre PCs de la misma sucursal (replica el patrón de `useRealtimeOrders`).
 - **Lectura defensiva del checklist de ingreso**: helper `sanitizeIntakeChecklist` aplica zod safeParse al JSON `orders.intake_checklist` al leer; si llega corrupto desde DB se degrada a `null` en lugar de propagar al UI.
