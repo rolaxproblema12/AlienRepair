@@ -264,6 +264,7 @@ export function invalidateCustomerRelated(
     qc.invalidateQueries({ queryKey: ['customer', sucursalId] });
     qc.invalidateQueries({ queryKey: ['customer-orders', sucursalId] });
     qc.invalidateQueries({ queryKey: ['customer-active-orders', sucursalId] });
+    qc.invalidateQueries({ queryKey: ['customer-warranty-orders', sucursalId] });
   }
 }
 

@@ -233,8 +233,18 @@ ipcMain.handle('catalog:refresh', async (event) => {
   return { ok: true, count: products.length, durationMs: Date.now() - start };
 });
 
+// Whitelist de rutas válidas para print:document. Sin esto, un renderer
+// comprometido (o un addon malicioso) podría llamar al IPC con un path
+// arbitrario tipo `data:text/html,...` o `../../../etc/passwd` y cargarlo
+// dentro de la printWindow oculta.
+const PRINT_ROUTE_REGEX =
+  /^\/print\/(order|receipt|sale|report|order-label)\/[A-Za-z0-9_\-.]+(\?size=(carta|termica))?$/;
+
 ipcMain.handle('print:document', async (_event, routePath: string) => {
   if (!mainWindow) throw new Error('Ventana principal no disponible');
+  if (typeof routePath !== 'string' || !PRINT_ROUTE_REGEX.test(routePath)) {
+    throw new Error(`Ruta de impresión inválida: ${routePath}`);
+  }
   const rendererUrl = process.env.ELECTRON_RENDERER_URL
     ? `${process.env.ELECTRON_RENDERER_URL}#${routePath}`
     : `file://${path.join(__dirname, '../../dist/index.html')}#${routePath}`;

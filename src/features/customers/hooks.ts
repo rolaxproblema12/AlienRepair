@@ -41,10 +41,12 @@ export function useCustomer(id: string | undefined) {
   return useQuery({
     queryKey: ['customer', sucursalId, id],
     queryFn: async () => {
+      // Defensa en profundidad: filtrar por sucursal_id además del id.
       const { data, error } = await supabase
         .from('customers')
         .select(CUSTOMER_COLUMNS)
         .eq('id', id!)
+        .eq('sucursal_id', sucursalId)
         .single();
       if (error) throw error;
       return data as Customer;

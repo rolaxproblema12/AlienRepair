@@ -14,6 +14,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -46,6 +54,7 @@ export default function CodesPage() {
 
   const [role, setRole] = useState<UserRole>('usuario');
   const [expires, setExpires] = useState<string>('');
+  const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
 
   async function copy(code: string) {
     try {
@@ -70,11 +79,12 @@ export default function CodesPage() {
     }
   }
 
-  async function handleDelete(code: string) {
-    if (!confirm(`¿Eliminar el código ${code}?`)) return;
+  async function confirmDelete() {
+    if (!deleteCandidate) return;
     try {
-      await del.mutateAsync(code);
+      await del.mutateAsync(deleteCandidate);
       toast.success('Código eliminado');
+      setDeleteCandidate(null);
     } catch (err) {
       log.error('admin', 'delete access code error', err);
       toast.error(getErrorMessage(err));
@@ -179,7 +189,7 @@ export default function CodesPage() {
                               variant="ghost"
                               size="icon"
                               title="Eliminar"
-                              onClick={() => handleDelete(c.code)}
+                              onClick={() => setDeleteCandidate(c.code)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -194,6 +204,33 @@ export default function CodesPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!deleteCandidate}
+        onOpenChange={(open) => !open && setDeleteCandidate(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar código</DialogTitle>
+            <DialogDescription>
+              ¿Eliminar el código <strong className="font-mono">{deleteCandidate}</strong>?
+              Si todavía no fue redimido, ya no podrá usarse para activar una cuenta.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteCandidate(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={del.isPending}
+            >
+              {del.isPending ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

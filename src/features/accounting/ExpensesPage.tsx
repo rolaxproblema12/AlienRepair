@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Edit2, Plus, Receipt, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useInfiniteExpenses, useDeleteExpense } from './hooks';
 import { EXPENSE_KIND_LABELS, type ExpenseWithOrder } from './types';
 import ExpenseFormDialog from './ExpenseFormDialog';
@@ -42,6 +50,7 @@ export default function ExpensesPage() {
   const [to, setTo] = useState(todayIso());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithOrder | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<ExpenseWithOrder | null>(null);
 
   const expensesQ = useInfiniteExpenses({ kind: kindFilter, from, to });
   const del = useDeleteExpense();
@@ -53,11 +62,12 @@ export default function ExpensesPage() {
   // total real del rango debe cargar todas las páginas (botón "Cargar más").
   const total = data.reduce((acc, e) => acc + Number(e.amount), 0);
 
-  async function handleDelete(id: string) {
-    if (!confirm('¿Eliminar este gasto?')) return;
+  async function confirmDelete() {
+    if (!deleteCandidate) return;
     try {
-      await del.mutateAsync(id);
+      await del.mutateAsync(deleteCandidate.id);
       toast.success('Gasto eliminado');
+      setDeleteCandidate(null);
     } catch (err) {
       toast.error(getErrorMessage(err));
     }
@@ -197,7 +207,7 @@ export default function ExpensesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(e.id)}
+                        onClick={() => setDeleteCandidate(e)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -228,6 +238,38 @@ export default function ExpensesPage() {
         onOpenChange={setDialogOpen}
         expense={editing}
       />
+
+      <Dialog
+        open={!!deleteCandidate}
+        onOpenChange={(open) => !open && setDeleteCandidate(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar gasto</DialogTitle>
+            <DialogDescription>
+              {deleteCandidate ? (
+                <>
+                  ¿Eliminar el gasto "{deleteCandidate.description}" por{' '}
+                  <strong>{currency(deleteCandidate.amount)}</strong>? Esta acción no
+                  se puede deshacer.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteCandidate(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={del.isPending}
+            >
+              {del.isPending ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

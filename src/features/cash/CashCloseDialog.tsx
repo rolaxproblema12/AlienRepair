@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { AlertTriangle } from 'lucide-react';
 import { useCloseSession, type DayBalance } from './hooks';
 import { closeSessionSchema, type CloseSessionInput } from './schemas';
 import type { CashSession } from './types';
@@ -27,8 +28,16 @@ interface Props {
   balance: DayBalance | undefined;
 }
 
+// Diferencia menor (en cualquier sentido) que se acepta sin confirmación
+// extra. Por encima de este monto el operador debe confirmar — protege
+// contra cierres con tipos accidentales de un dígito.
+const DIFF_WARNING_THRESHOLD = 50;
+
 export default function CashCloseDialog({ open, onOpenChange, session, balance }: Props) {
   const close = useCloseSession();
+  // Estado de confirmación del paso 2 (warning de diff grande). Cuando es
+  // true, el botón principal cambia a "Confirmar de todos modos".
+  const [diffConfirmed, setDiffConfirmed] = useState(false);
 
   const {
     register,
@@ -42,14 +51,24 @@ export default function CashCloseDialog({ open, onOpenChange, session, balance }
   });
 
   useEffect(() => {
-    if (open) reset({ counted_cash: 0, closing_notes: '' });
+    if (open) {
+      reset({ counted_cash: 0, closing_notes: '' });
+      setDiffConfirmed(false);
+    }
   }, [open, reset]);
 
   const counted = Number(watch('counted_cash') || 0);
   const expected = balance?.cashExpected ?? Number(session.opening_amount);
   const diff = counted - expected;
+  const needsConfirm = Math.abs(diff) > DIFF_WARNING_THRESHOLD && !diffConfirmed;
 
   const onSubmit = handleSubmit(async (values) => {
+    if (Math.abs(diff) > DIFF_WARNING_THRESHOLD && !diffConfirmed) {
+      // Primer click con diff alto: solo activa el modo "confirmar de
+      // todos modos", no envía. Forza una pausa visual al operador.
+      setDiffConfirmed(true);
+      return;
+    }
     try {
       await close.mutateAsync({
         sessionId: session.id,
@@ -135,12 +154,35 @@ export default function CashCloseDialog({ open, onOpenChange, session, balance }
             />
           </div>
 
+          {Math.abs(diff) > DIFF_WARNING_THRESHOLD && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div>
+                <p className="font-medium">
+                  Diferencia significativa ({currency(Math.abs(diff))}).
+                </p>
+                <p className="mt-0.5">
+                  Verificá que el efectivo contado sea correcto. Si confirmás, la
+                  diferencia queda registrada en el cierre.
+                </p>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={close.isPending}>
-              {close.isPending ? 'Cerrando...' : 'Confirmar cierre'}
+            <Button
+              type="submit"
+              disabled={close.isPending}
+              variant={needsConfirm ? 'destructive' : 'default'}
+            >
+              {close.isPending
+                ? 'Cerrando...'
+                : needsConfirm
+                  ? 'Confirmar de todos modos'
+                  : 'Confirmar cierre'}
             </Button>
           </DialogFooter>
         </form>

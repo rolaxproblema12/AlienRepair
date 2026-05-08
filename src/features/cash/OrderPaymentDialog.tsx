@@ -141,7 +141,10 @@ export default function OrderPaymentDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={add.isPending}>
+            <Button
+              type="submit"
+              disabled={add.isPending || amount <= 0 || amount > balance}
+            >
               {add.isPending ? 'Guardando...' : `Abonar ${currency(amount)}`}
             </Button>
           </DialogFooter>

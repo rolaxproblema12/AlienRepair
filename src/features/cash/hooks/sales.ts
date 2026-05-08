@@ -133,7 +133,13 @@ export function useSale(id: string | undefined) {
         { data: items, error: e2 },
         { data: payments, error: e3 },
       ] = await Promise.all([
-        supabase.from('sales').select(SALE_COLUMNS).eq('id', id!).single(),
+        // Defensa en profundidad: filtrar por sucursal_id además del id.
+        supabase
+          .from('sales')
+          .select(SALE_COLUMNS)
+          .eq('id', id!)
+          .eq('sucursal_id', sucursalId)
+          .single(),
         supabase
           .from('sale_items')
           .select(SALE_ITEM_COLUMNS)

@@ -15,6 +15,21 @@ Sentry.init({
       delete event.request.headers['authorization'];
       delete event.request.headers['apikey'];
     }
+    // Limpiar request body — puede contener PII (customer_id, order_id,
+    // amount, notes con texto del cliente, etc) que un POST 500 capturó.
+    // Sin esto, esos datos llegan a Sentry sin filtro.
+    if (event.request?.data) {
+      event.request.data = '[redacted]';
+    }
+    // Limpiar contexts.extra si trae campos que parecen PII proxies. El
+    // logger pasa orderId/customerId/amount como debug, pero a Sentry los
+    // hasheamos para reducir superficie sin perder agrupación de errores.
+    const extra = event.extra;
+    if (extra && typeof extra === 'object') {
+      for (const k of ['customerId', 'customer_id', 'phone', 'email']) {
+        if (k in extra) delete (extra as Record<string, unknown>)[k];
+      }
+    }
     return event;
   },
 });

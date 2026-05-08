@@ -175,7 +175,10 @@ function NewWarrantyDialog({ open, onOpenChange }: NewWarrantyDialogProps) {
   const navigate = useNavigate();
   const { current: sucursal } = useCurrentSucursal();
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const warrantyDays = sucursal?.warranty_days ?? 30;
+  // Fallback 0 (no 30) para que cuando sucursal aún no cargó el query de
+  // eligibles esté disabled (`enabled: warrantyDays > 0` en useCustomerWarrantyOrders).
+  // Evita refetch al hidratar la sucursal real.
+  const warrantyDays = sucursal?.warranty_days ?? 0;
   const eligible = useCustomerWarrantyOrders(customerId ?? undefined, warrantyDays);
 
   // Reset al cerrar el dialog para no mostrar selección stale al reabrir.

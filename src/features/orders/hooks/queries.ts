@@ -99,10 +99,13 @@ export function useOrder(id: string | undefined) {
   return useQuery({
     queryKey: ['order', sucursalId, id],
     queryFn: async () => {
+      // Defensa en profundidad: aunque RLS filtra por sucursal, el filtro
+      // explícito previene leak silencioso si una policy se rompiera.
       const { data, error } = await supabase
         .from('orders')
         .select(LIST_COLUMNS)
         .eq('id', id!)
+        .eq('sucursal_id', sucursalId)
         .single();
       if (error) throw error;
       return sanitizeOrderRow(data as unknown as OrderWithCustomer);

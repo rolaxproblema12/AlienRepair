@@ -69,10 +69,12 @@ export function useProduct(id: string | undefined) {
   return useQuery({
     queryKey: ['product', sucursalId, id],
     queryFn: async () => {
+      // Defensa en profundidad sobre RLS.
       const { data, error } = await supabase
         .from('products')
         .select(PRODUCT_COLUMNS)
         .eq('id', id!)
+        .eq('sucursal_id', sucursalId)
         .single();
       if (error) throw error;
       return data as unknown as ProductWithCategory;

@@ -245,63 +245,58 @@ export function useUpdateOrderStatus() {
       // Si el operador cobró con tarjeta/transferencia, debió haberlo
       // registrado vía OrderPaymentDialog antes (en cuyo caso el saldo
       // acá ya es 0 y no se crea pago auto).
+      // Auto-cobro al entregar — el monto se devuelve en `autoCollected`
+      // para que el wrapper (useUpdateOrderStatusWithNotify) muestre toast
+      // "Cobro de $X registrado en efectivo" al operador.
+      let autoCollected = 0;
       if (status === 'entregado') {
-        // Idempotencia + protección contra race conditions:
-        //
-        // 1) Pre-check (skip pre-insert si ya existe el auto-pago): cubre
-        //    doble-click del operador y reaperturas → re-cierres.
-        // 2) DB-level UNIQUE partial index (`order_payments_auto_collect_unique_idx`,
-        //    migración 0044) garantiza que dos tabs simultáneas no puedan
-        //    crear duplicados — la segunda transacción falla con SQLSTATE
-        //    23505 que atrapamos abajo.
-        const { data: existing } = await supabase
-          .from('order_payments')
-          .select('id')
+        // Leer balance de la OS scopeado por sucursal (defensa en profundidad
+        // sobre RLS). Si por algún bug v_order_balance devolviera row de otra
+        // sucursal, el filtro extra lo cortaría.
+        const { data: balanceRow } = await supabase
+          .from('v_order_balance')
+          .select('balance')
           .eq('order_id', id)
-          .eq('notes', 'Cobro automático al entregar')
-          .limit(1);
-        const alreadyAuto = (existing ?? []).length > 0;
-
-        if (!alreadyAuto) {
-          const { data: balanceRow } = await supabase
-            .from('v_order_balance')
-            .select('balance')
-            .eq('order_id', id)
+          .eq('sucursal_id', sucursalId)
+          .maybeSingle();
+        const balance = Number(balanceRow?.balance ?? 0);
+        if (balance > 0.01) {
+          // Vincular a la sesión abierta de ESTA sucursal si existe.
+          // Si no hay sesión, queda con cash_session_id=null — el
+          // accounting daily lo cuenta igual via v_accounting_daily.
+          const { data: session } = await supabase
+            .from('cash_sessions')
+            .select('id')
+            .eq('sucursal_id', sucursalId)
+            .eq('status', 'open')
             .maybeSingle();
-          const balance = Number(balanceRow?.balance ?? 0);
-          if (balance > 0.01) {
-            // Vincular a la sesión abierta de ESTA sucursal si existe.
-            // Si no hay sesión, queda con cash_session_id=null — el
-            // accounting daily lo cuenta igual via v_accounting_daily.
-            const { data: session } = await supabase
-              .from('cash_sessions')
-              .select('id')
-              .eq('sucursal_id', sucursalId)
-              .eq('status', 'open')
-              .maybeSingle();
-            const { error: payErr } = await supabase
-              .from('order_payments')
-              .insert({
-                sucursal_id: sucursalId,
-                order_id: id,
-                cash_session_id: session?.id ?? null,
-                amount: Number(balance.toFixed(2)),
-                payment_method: 'efectivo',
-                notes: 'Cobro automático al entregar',
-                created_by: userId,
+          // Atomicidad real: el UNIQUE partial index `order_payments_auto_collect_unique_idx`
+          // (migración 0044) garantiza que dos tabs concurrentes no creen
+          // pagos duplicados. El handler de SQLSTATE 23505 abajo trata
+          // esa carrera como no-op silencioso.
+          const { error: payErr } = await supabase
+            .from('order_payments')
+            .insert({
+              sucursal_id: sucursalId,
+              order_id: id,
+              cash_session_id: session?.id ?? null,
+              amount: Number(balance.toFixed(2)),
+              payment_method: 'efectivo',
+              notes: 'Cobro automático al entregar',
+              created_by: userId,
+            });
+          if (payErr) {
+            // 23505 = unique_violation. Otra tab ya creó el pago — skipeamos.
+            const code = (payErr as { code?: string }).code;
+            if (code !== '23505') {
+              log.error('orders', 'Auto-cobro al entregar falló', payErr, {
+                orderId: id,
+                amount: balance,
               });
-            if (payErr) {
-              // 23505 = unique_violation. La otra tab ganó la carrera y ya
-              // creó el pago — no es error real, sólo skipeamos silencioso.
-              const code = (payErr as { code?: string }).code;
-              if (code !== '23505') {
-                log.error('orders', 'Auto-cobro al entregar falló', payErr, {
-                  orderId: id,
-                  amount: balance,
-                });
-                throw payErr;
-              }
+              throw payErr;
             }
+          } else {
+            autoCollected = balance;
           }
         }
       }
@@ -313,7 +308,15 @@ export function useUpdateOrderStatus() {
         .select(LIST_COLUMNS)
         .single();
       if (error) throw error;
-      return data as unknown as OrderWithCustomer;
+      // Anotamos `autoCollected` en el objeto returnado (campo extra,
+      // ignorado por consumers que solo esperan OrderWithCustomer).
+      // El wrapper useUpdateOrderStatusWithNotify lo usa para mostrar
+      // toast "Cobro de $X registrado al entregar".
+      const result = data as unknown as OrderWithCustomer & {
+        autoCollected?: number;
+      };
+      if (autoCollected > 0) result.autoCollected = autoCollected;
+      return result;
     },
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: ['orders', sucursalId] });

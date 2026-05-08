@@ -212,7 +212,7 @@ export default function OrderFormPage() {
                 #{warrantyOriginal.data.folio}
               </Link>
             </p>
-            <p className="text-xs text-amber-100/90">
+            <p className="text-xs text-amber-200/90">
               Costo por defecto $0. Editalo si la garantía implica un cargo extra
               (refacciones, mano de obra adicional, etc.).
             </p>

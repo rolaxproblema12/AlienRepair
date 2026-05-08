@@ -70,9 +70,13 @@ export function useRealtimeOrders() {
           // en operaciones masivas. La id evita duplicar el toast si el mismo
           // cambio se replica varias veces (Supabase a veces lo hace).
           if (eventType === 'UPDATE' && statusChanged) {
-            toast('Estado de OS actualizado en otra sesión', {
+            // Duración corta + dedup por orderId. El operador del taller no
+            // necesita ver detalle de qué status cambió; solo saber que la
+            // data se sincronizó. 1.5s es suficiente para registrar
+            // visualmente sin saturar si vienen 5 cambios en 5s.
+            toast('Actualizado desde otra sesión', {
               id: `realtime-order-${orderId}`,
-              duration: 2000,
+              duration: 1500,
             });
           }
         }

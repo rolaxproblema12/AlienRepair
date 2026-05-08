@@ -6,7 +6,10 @@ import type { OrderStatus, OrderWithCustomer } from './types';
 import { useCurrentSucursal } from '@/features/sucursales/hooks';
 import { useSucursalSettingsMap } from '@/features/admin/sucursalConfig/hooks';
 import { openWhatsApp, buildStatusMessage } from '@/lib/whatsapp';
+import { currency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
+
+type OrderWithAutoCollected = OrderWithCustomer & { autoCollected?: number };
 
 /**
  * Wrapper de useUpdateOrderStatus que después de un cambio exitoso de
@@ -27,7 +30,19 @@ export function useUpdateOrderStatusWithNotify() {
 
   const mutateAsync = useCallback(
     async (vars: { id: string; status: OrderStatus }): Promise<OrderWithCustomer> => {
-      const result = await update.mutateAsync(vars);
+      const result = (await update.mutateAsync(vars)) as OrderWithAutoCollected;
+      // Si la mutation cobró saldo automáticamente al entregar, dar feedback
+      // inmediato al operador (toast separado del de WhatsApp para que se vea
+      // claro lo que se registró en caja).
+      if (result.autoCollected && result.autoCollected > 0) {
+        toast.success(
+          `Cobro de ${currency(result.autoCollected)} registrado en efectivo`,
+          {
+            description: 'Saldo de la OS cubierto al entregar.',
+            duration: 5_000,
+          },
+        );
+      }
       if (autoNotify) {
         notifyStatusChange(result, sucursal?.name, settingsMap);
       }
